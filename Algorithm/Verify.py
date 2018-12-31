@@ -2,8 +2,12 @@
 """
 验证先关的交易策略是否生效
 """
+import math
+import datetime
 import pandas
 import matplotlib.pyplot as plt
+import DailyUtils.FindLowStock as FindLowStock
+import Output.FileOutput as FileOutput
 
 
 def verify(base_data):
@@ -76,3 +80,58 @@ def real_verify(base_data):
     plt.scatter(base_data['score'], base_data['win_percent'], s=1)
     # plt.scatter(temp_win['score'], temp_win['win_percent'])
 
+
+def period_low_verify(base_data, index_data=None, cal_column='af_close', windows=220):
+    shift_af_close = base_data[cal_column].shift(-20)
+    base_data[str(windows) + '_win'] = (shift_af_close - base_data[cal_column]) / base_data[cal_column]
+    if index_data is not None and not index_data.empty:
+        temp_index_ma = index_data['ma50'].shift(-1)
+        index_data['index_ma_50_sp'] = index_data['ma50slope'] / temp_index_ma
+
+    result = FindLowStock.find_low_record(base_data, windows=windows)
+    index_consi_result = pandas.DataFrame(columns=base_data.columns)
+    if len(result) > 0 and index_data is not None:
+        for i in range(len(result)):
+            trade_date = result.at[i, 'trade_date']
+            record = index_data[index_data['trade_date'] == trade_date]
+            if record.at[0, 'index_ma_50_sp'] > 0.00:
+                index_consi_result.append(result.iloc[i])
+
+    return_rst = (index_consi_result if index_data is not None else result,
+                  len(base_data[base_data[str(windows) + '_win'] > 0.08]))
+    return return_rst
+
+
+def batch_low_verify(data_center):
+    result = pandas.DataFrame(columns=['trade_date', 'ts_code', '220_win'])
+    real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101', end_date='20181217')
+        if not base_data.empty:
+            return_result = period_low_verify(base_data  , None, 'close')
+            rst = return_result[0]
+            rst = filter_next_up(base_data, rst)
+            result = result.append(rst[['trade_date', 'ts_code', '220_win']])
+            real_win_count = real_win_count.append(
+                {'ts_code': base_data.at[0, 'ts_code'], 'real_win_count': return_result[1]}, ignore_index=True)
+    format_percent = result['220_win'] * 100
+    format_percent = format_percent.apply(lambda x: str(x) + "%")
+    result['220_win'] = format_percent
+    FileOutput.csv_output(None, result, '220_filter_result_filter.csv')
+    FileOutput.csv_output(None, real_win_count, 'win_count_filter.csv')
+
+
+def filter_next_up(base_data, filter_rst):
+    filter_rst.sort_values(by=['trade_date'])
+    base_data.sort_values(by=['trade_date'])
+    trade_date = filter_rst['trade_date']
+    # 将时间推后一天，看下一天的结果如何
+    trade_date = trade_date.apply(lambda x: (datetime.date(int(x[0:4]), int(x[4:6]), int(x[6:8])) + datetime.timedelta(days=1))
+                     .strftime("%Y%m%d"))
+    # 下面的方法返回一个Boolean序列
+    ret_value = base_data['trade_date'].isin(trade_date)
+    ret_value = base_data[ret_value.values]
+    ret_value = ret_value[ret_value['pct_chg'] > 3]
+    return ret_value

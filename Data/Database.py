@@ -51,15 +51,24 @@ class MySQLDB:
         result = np.array(self.__cursor.fetchall())
         return result
 
-    def fetch_stock_list(self, code):
+    def fetch_stock_list(self, code, market='主板', where=''):
+        has_where = False
+        query_sql = "select * from stock_list"
+        condition = []
         if code is not None and len(code) > 0 and not code.isspace():
-            query_sql = "select * from stock_list where symbol=%s"
-            self.__cursor.execute(query_sql, (code,))
-            return self.__cursor.fetchall()
-        else:
-            query_sql = "select * from stock_list"
-            self.__cursor.execute(query_sql)
-            return self.__cursor.fetchall()
+            has_where = True
+            condition.append(code)
+            query_sql += " where symbol=%s"
+
+        if market is not None and len(market) > 0 and not market.isspace():
+            condition.append(market)
+            query_sql += " and market=%s" if has_where else " where market=%s"
+            has_where = True
+
+        if where is not None and len(where) > 0 and not where.isspace():
+            query_sql += " and " + where if has_where else "where " + where
+        self.__cursor.execute(query_sql, condition)
+        return self.__cursor.fetchall()
 
     def write_stock_list(self, data):
         """
@@ -79,10 +88,32 @@ class MySQLDB:
         :param code:
         :return: 复权因子信息
         """
-        query_sql = "select * from adj_factor where ts_code=%s"
+        query_sql = "select adj_factor.* from stock_base_info left join adj_factor " \
+                    "on stock_base_info.trade_date=adj_factor.trade_date where adj_factor.ts_code=%s"
         result = pandas.read_sql(query_sql, con=self.__engine, params=(code,))
         return result
 
     def write_adj_factor(self, data):
         data.to_sql('adj_factor', self.__engine, if_exists='append', index=False)
+
+    def is_exist_base_data(self, stock_code, date):
+        query_sql = "select trade_date from stock_base_info where ts_code=%s and trade_date like %s " \
+                    "order by trade_date limit 1"
+        self.__cursor.execute(query_sql, (stock_code, date + "%"))
+        result = self.__cursor.fetchall()
+        return len(result) > 0 and result[0][0]
+
+    def is_exist_adj_factor(self, stock_code, date):
+        query_sql = "select trade_date from adj_factor where ts_code=%s and trade_date like %s " \
+                    "order by trade_date limit 1"
+        self.__cursor.execute(query_sql, (stock_code, date + "%"))
+        result = self.__cursor.fetchall()
+        return len(result) > 0 and result[0][0]
+
+    def write_index_list(self, index_list):
+        if len(index_list) > 0:
+            delete_sql = "delete from stock_index where market like %s"
+            self.__cursor.execute(delete_sql, (index_list.at[0, 'market'],))
+            self.__con.commit()
+            index_list.to_sql('stock_index', self.__engine, if_exists='append', index=False)
 
