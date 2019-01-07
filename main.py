@@ -12,8 +12,11 @@ import tushare
 import Data.DataCenter
 import Algorithm.Calculator as Calculator
 import Algorithm.Verify as Verify
+import redis
+import json
 
 data_center = Data.DataCenter.DataCenter()
+
 
 def fetch_day_index_data(stock_code, begin_date=None, end_date=None):
     if begin_date is None:
@@ -23,11 +26,60 @@ def fetch_day_index_data(stock_code, begin_date=None, end_date=None):
         end_date = begin_date
     data_center.fetch_index_data(stock_code, begin_date=begin_date, end_date=end_date)
 
-def fetch_all_daily_info(stock_code, trade_date=None):
+
+def fetch_all_daily_info(trade_date=None, until_now=False):
+    """
+    按天获取所有的股票的信息，如果是@param until_now为True的话，那么一直获取到当天为止
+    :param stock_code:
+    :param trade_date:
+    :param until_now:
+    :return:
+    """
     if trade_date is None:
         trade_date = datetime.datetime.now()
         trade_date = trade_date.strftime("%Y%m%d")
-    data_center.fetch_all_base_one_day(trade_date=trade_date)
+        data_center.fetch_all_base_one_day(trade_date=trade_date)
+    else:
+        now_time = datetime.datetime.now()
+        now_date = now_time.strftime("%Y%m%d")
+        temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
+        if trade_date < now_date and until_now:
+            while trade_date < now_date:
+                data_center.fetch_all_base_one_day(trade_date=trade_date)
+                temp_date += datetime.timedelta(days=1)
+                trade_date = temp_date.strftime("%Y%m%d")
+
+
+def write_base_info_to_redis():
+    data_center.flush_data_to_redis()
+
+
+# fetch_all_daily_info(trade_date='20181227', until_now=True)
+
+# write_base_info_to_redis()
+Verify.curr_win_percent(data_center, begin_date="20181213", end_date="20190103")
+
+# rdp = redis.ConnectionPool(host='127.0.0.1', port=6379)
+# rdc = redis.StrictRedis(connection_pool=rdp)
+# rdp.disconnect()
+# rdc.lpush("haha", 398475934)
+#
+# value1 = {}
+#
+# data1 = pandas.DataFrame(columns=("22", "55"))
+# data1 = data1.append({"22": 4356, "55": 888888}, ignore_index=True)
+# data1 = data1.append({"22": 7777, "55": 9999}, ignore_index=True)
+# se1 = pandas.Series((123, 666), index=("44", "33"))
+# all_value = data1.values
+# for i in range(all_value.shape[0]):
+#     temp_value = all_value[i]
+#     setemp = pandas.Series(temp_value, index=data1.columns)
+#     print(setemp.to_json())
+# # print(value2.to_json())
+
+# -----------------------------------------------获取每天数据-----------------------------------------------
+# data_center.fetch_all_base_one_day('20181218')
+# -----------------------------------------------获取煤炭数据 -- end ---------------------------------------
 
 # print('hello!')
 
@@ -100,8 +152,13 @@ def fetch_all_daily_info(stock_code, trade_date=None):
 # -------------------------------------------------批量获取数据 end  ---------------------------------------------------
 
 # -------------------------------------------------批量统计最低买入 ----------------------------------------------------
-data_center = Data.DataCenter.DataCenter()
-Verify.batch_low_verify(data_center)
+# data_center = Data.DataCenter.DataCenter()
+# Verify.batch_low_verify(data_center)
+# -------------------------------------------------批量统计最低买入 -- end ---------------------------------------------
+
+# -------------------------------------------------批量统计最低买入 ----------------------------------------------------
+# data_center = Data.DataCenter.DataCenter()
+# Verify.with_15_up_buy(data_center)
 # -------------------------------------------------批量统计最低买入 -- end ---------------------------------------------
 
 # plt.hist(temp_value[7:], bins=80)

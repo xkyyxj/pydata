@@ -46,18 +46,16 @@ def find_low_record(base_data, windows=365, column='close'):
 
 
 def find_low_record_adv(base_data, windows=365, column='close'):
-    min_index_set = set()
     result = pandas.DataFrame(columns=base_data.columns)
     if len(base_data) <= 0:
         return result
-    for index in range(len(base_data)):
-        min_index = index
-        min_price = base_data.at[index, column]
-        for j in range(index, index + windows):
-            if j < len(base_data) and base_data.at[j, column] < min_price:
-                min_price = base_data.at[j, column]
-                min_index = j
-        if min_index not in min_index_set and j == index + windows - 1:
-            min_index_set.add(min_index)
-            result = result.append(base_data.iloc[min_index])
+    min_index = 0
+    min_price = base_data.at[min_index, column]
+    for index in range(1, len(base_data)):
+        temp_price = base_data.at[index, column]
+        if temp_price < min_price:
+            pass
+    for index in range(windows, len(base_data)):
+
+        pass
     return result

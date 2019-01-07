@@ -110,7 +110,7 @@ def batch_low_verify(data_center):
         base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
                                                               begin_date='20160101', end_date='20181217')
         if not base_data.empty:
-            return_result = period_low_verify(base_data  , None, 'close')
+            return_result = period_low_verify(base_data, None, 'close')
             rst = return_result[0]
             rst = filter_next_up(base_data, rst)
             result = result.append(rst[['trade_date', 'ts_code', '220_win']])
@@ -135,3 +135,128 @@ def filter_next_up(base_data, filter_rst):
     ret_value = base_data[ret_value.values]
     ret_value = ret_value[ret_value['pct_chg'] > 3]
     return ret_value
+
+
+def high_after_low(data_center):
+    result = pandas.DataFrame(columns=['trade_date', 'ts_code', '220_15_win'])
+    real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101', end_date='20181217')
+        if not base_data.empty:
+            # 计算逻辑
+            close_shift_15 = base_data['close'].shift(-35)
+            base_data['220_15_win'] = (base_data['close'] - close_shift_15) / close_shift_15
+            # 下面几行代码计算一下，7天之后是否上涨已经达到了15%
+            close_shift_7 = base_data['close'].shift(-7)
+            base_data['7_days_up'] = (base_data['close'] - close_shift_7) / close_shift_7
+            return_result = FindLowStock.find_low_record_adv(base_data, 220, 'close')
+            real_count = len(return_result[return_result['220_15_win'] > 0.08])
+            rst = return_result
+            rst = rst[rst['7_days_up'] > 0.15]
+            result = result.append(rst[['trade_date', 'ts_code', '220_15_win']])
+            real_win_count = real_win_count.append(
+                {'ts_code': base_data.at[0, 'ts_code'], 'real_win_count': real_count}, ignore_index=True)
+    format_percent = result['220_15_win'] * 100
+    format_percent = format_percent.apply(lambda x: str(x) + "%")
+    result['220_15_win'] = format_percent
+    FileOutput.csv_output(None, result, '220_down_15_up.csv')
+    FileOutput.csv_output(None, real_win_count, 'win_count_filter_15_up.csv')
+
+
+def with_15_up_buy(data_center):
+    result = pandas.DataFrame(columns=['trade_date', 'ts_code', '15_win'])
+    real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101', end_date='20181217')
+        if not base_data.empty:
+            # 计算逻辑
+            close_shift_7 = base_data['close'].shift(7)
+            close_shift_15 = base_data['close'].shift(15)
+            base_data['15_win'] = (close_shift_15 - close_shift_7) / close_shift_7
+            # 下面几行代码计算一下，7天之后是否上涨已经达到了15%
+            base_data['7_days_up'] = (close_shift_7 - base_data['close']) / base_data['close']
+            return_result = base_data
+            real_count = len(return_result[return_result['15_win'] > 0.08])
+            rst = return_result
+            rst = rst[rst['7_days_up'] > 0.15]
+            result = result.append(rst[['trade_date', 'ts_code', '15_win']])
+            real_win_count = real_win_count.append(
+                {'ts_code': base_data.at[0, 'ts_code'], 'real_win_count': real_count}, ignore_index=True)
+    format_percent = result['15_win'] * 100
+    format_percent = format_percent.apply(lambda x: str(x) + "%")
+    result['15_win'] = format_percent
+    FileOutput.csv_output(None, result, '15_up.csv')
+    FileOutput.csv_output(None, real_win_count, 'win_count_filter_15_up.csv')
+
+
+def max_up_down_percent(base_data):
+    """
+    计算区间内单日的最大涨跌幅
+    :param base_data: pandas.DataFrame，包含所有的股票基本信息
+    :return: tuple类型，第一个元素为最大涨幅，第二个元素为最大跌幅
+    """
+    min_price_index = base_data['close'].idxmin()
+    max_price_index = base_data['close'].idxmax()
+    min_price = base_data['close'][min_price_index]
+    max_price = base_data['close'][max_price_index]
+    if max_price_index > min_price_index:
+        max_up_percent = (max_price - min_price) / min_price
+        max_down_percent = 0
+        temp_max_price = base_data['close'][0]
+        for i in range(1, len(base_data)):
+            temp_price = base_data['close'][i]
+            if temp_price < temp_max_price:
+                temp_max_down_p = (temp_price - temp_max_price) / temp_max_price
+                max_down_percent = temp_max_down_p if temp_max_down_p < max_down_percent else max_down_percent
+            else:
+                temp_max_price = temp_price
+    else:
+        max_down_percent = (min_price - max_price) / max_price
+        max_up_percent = 0
+        temp_min_price = base_data['close'][0]
+        for i in range(1, len(base_data)):
+            temp_price = base_data['close'][i]
+            if temp_price > temp_min_price:
+                temp_max_up_p = (temp_price - temp_min_price) / temp_min_price
+                max_up_percent = temp_max_up_p if temp_max_up_p > max_up_percent else max_up_percent
+            else:
+                temp_min_price = temp_price
+
+    return max_up_percent, max_down_percent
+
+
+def curr_win_percent(data_center, begin_date, end_date):
+    """
+    最近几天A股主板的赚钱效应
+    统计信息如下：
+    1. 最大涨幅
+    2. 最大跌幅
+    3. 首日买入的上涨下跌频率
+    :param data_center:
+    :param begin_date: 计算开始日期
+    :param end_date: 计算结束日期
+    :return:
+    """
+    result = pandas.DataFrame(columns=['ts_code', 'max_up_percent', 'max_down_percent'])
+    real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
+    stock_list = data_center.fetch_stock_list()
+
+    win_count = 0
+    all_count = 0
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date, end_date=end_date)
+        if not base_data.empty and len(base_data) > 1:
+            # 计算逻辑
+            # 计算最大涨跌幅
+            max_up_percent, max_down_percent = max_up_down_percent(base_data)
+            if max_up_percent > 0.1 and base_data['close'][len(base_data) - 1] > base_data['close'][0]:
+                win_count += 1
+            all_count += 1
+    extra_content = "win_count: %s, all_count: %s" % (win_count, all_count)
+    FileOutput.csv_output(None, result, 'last_days_win.csv', extra_content)
+    # FileOutput.csv_output(None, real_win_count, 'win_count_filter_15_up.csv')
