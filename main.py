@@ -18,6 +18,15 @@ import json
 data_center = Data.DataCenter.DataCenter()
 
 
+def batch_fetch_daily_info(data_center):
+    all_stock_list = data_center.fetch_stock_list(where="ts_code > '603616.SH'")
+    now_day = datetime.datetime.now()
+    now_day = now_day.strftime("%Y%m%d")
+    for item in range(len(all_stock_list)):
+        data_center.fetch_base_data(all_stock_list[item][0], begin_date='20160101', end_date=now_day)
+        time.sleep(1)
+
+
 def fetch_day_index_data(stock_code, begin_date=None, end_date=None):
     if begin_date is None:
         begin_date = datetime.datetime.now()
@@ -50,14 +59,30 @@ def fetch_all_daily_info(trade_date=None, until_now=False):
                 trade_date = temp_date.strftime("%Y%m%d")
 
 
-def write_base_info_to_redis():
-    data_center.flush_data_to_redis()
+def write_base_info_to_redis(write_form='JSON'):
+    if write_form == 'JSON':
+        data_center.flush_data_to_redis()
+    elif write_form == 'DataFrame':
+        data_center.flush_data_frame_to_redis()
 
+
+data_center.init_adj_factor()
 
 # fetch_all_daily_info(trade_date='20181227', until_now=True)
 
-# write_base_info_to_redis()
-Verify.curr_win_percent(data_center, begin_date="20181213", end_date="20190103")
+# write_base_info_to_redis("DataFrame")
+# value1 = datetime.datetime.now()
+# Verify.curr_win_percent(data_center, begin_date="20181213", end_date="20190103")
+# print(data_center.get_fetch_data_time())
+# value2 = datetime.datetime.now()
+# print((value2 - value1).seconds)
+
+# Verify.windows_low_buy(data_center, meet_first_up=True)
+
+# f1 = pandas.DataFrame([[123, 55, 77]], columns=("123", "333", "444"))
+# content = f1.to_msgpack()
+# f2 = pandas.read_msgpack(content)
+# print(f2)
 
 # rdp = redis.ConnectionPool(host='127.0.0.1', port=6379)
 # rdc = redis.StrictRedis(connection_pool=rdp)
@@ -76,6 +101,24 @@ Verify.curr_win_percent(data_center, begin_date="20181213", end_date="20190103")
 #     setemp = pandas.Series(temp_value, index=data1.columns)
 #     print(setemp.to_json())
 # # print(value2.to_json())
+
+# ----------------------------------------------DataFrame.rolling --------------------------------------------
+# se1 = pandas.Series([1, 4, 3, 7, 8], index=range(5))
+# print(se1.shift(-3))
+# print(se1.rolling(3).min())
+#
+# d1 = pandas.DataFrame([[2, 4], [5, 7]], columns=("1", "2"))
+# print(d1.rolling(2)['1'].min())
+#
+# d1 = pandas.DataFrame([[2, 4], [5, 7]], columns=("1", "2"))
+# print(d1['1'].rolling(2).min())
+# ----------------------------------------------end -------------------------------------------------------------
+
+# ------------------------------------------------Series & Operation --------------------------------------------
+# se2 = pandas.Series([False, True, False], index=range(3))
+# se3 = pandas.Series([True, True, False], index=range(3))
+# print(se2 & se3)
+# -------------------------------------------------Series & Operation end ---------------------------------------
 
 # -----------------------------------------------获取每天数据-----------------------------------------------
 # data_center.fetch_all_base_one_day('20181218')

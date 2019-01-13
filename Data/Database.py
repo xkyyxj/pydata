@@ -67,6 +67,7 @@ class MySQLDB:
 
         if where is not None and len(where) > 0 and not where.isspace():
             query_sql += " and " + where if has_where else "where " + where
+        query_sql += " order by ts_code"
         self.__cursor.execute(query_sql, condition)
         return self.__cursor.fetchall()
 

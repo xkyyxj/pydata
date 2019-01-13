@@ -41,8 +41,12 @@ class DataPull:
     def pull_daily_info(self, code):
         data = self.__pro.daily()
 
-    def fetch_weight_factor(self, code, begin_date='20180101', end_date='20181231'):
-        data = self.__pro.adj_factor(ts_code=code, start_date=begin_date, end_date=end_date)
+    def fetch_weight_factor_by_code(self, code):
+        data = self.__pro.adj_factor(ts_code=code)
+        return data
+
+    def fetch_adj_factor_by_date(self, trade_date):
+        data = self.__pro.adj_factor(trade_date=trade_date)
         return data
 
     def fetch_adj_daily_info(self, code, start_date='20180101', end_date='20181231'):

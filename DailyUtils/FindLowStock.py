@@ -46,16 +46,35 @@ def find_low_record(base_data, windows=365, column='close'):
 
 
 def find_low_record_adv(base_data, windows=365, column='close'):
-    result = pandas.DataFrame(columns=base_data.columns)
-    if len(base_data) <= 0:
-        return result
-    min_index = 0
-    min_price = base_data.at[min_index, column]
-    for index in range(1, len(base_data)):
-        temp_price = base_data.at[index, column]
-        if temp_price < min_price:
-            pass
-    for index in range(windows, len(base_data)):
+    """
+    该函数用于确定当前天之前的@param windows天数之内(包含当前天)，当前天是否是该期间内的最低价
+    返回一个pandas.Series，如果是最低价，那么相应index上就为True， 否则为False
+    PS: 上述find_low_record是个什么垃圾版本，为什么会有这么垃圾的代码？？？？？
+    :param base_data:
+    :param windows:
+    :param column:
+    :return:
+    """
+    ret_value = pandas.Series()
+    if base_data is None or len(base_data) == 0:
+        return ret_value
+    min_value = base_data.rolling(windows)[column].min()
+    return base_data[column] == min_value
 
-        pass
-    return result
+
+def find_low_and_has_up(base_data, up_percent, last_days, column):
+    """
+    计算最低价位时又在@param last_days之内上涨了@param up_percent比例的情况,
+    同时上涨比例也要小于@param up_percent加上20%
+    返回有一个Series，符合上述情况的达到@param up_percent那一天设为True，否则为False
+    :param base_data:
+    :param up_percent:
+    :param last_days:
+    :param column:
+    :return:
+    """
+    low_index = find_low_record_adv(base_data, column=column)
+    target_day_price = base_data[column].shift(-last_days)
+    base_data['days_up_percent'] = (target_day_price - base_data[column]) / base_data[column]
+    ret_index = base_data['days_up_percent'] >= up_percent & base_data['days_up_percent'] <= up_percent + 0.2
+    return ret_index & low_index

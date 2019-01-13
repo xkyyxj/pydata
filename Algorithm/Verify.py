@@ -3,6 +3,7 @@
 验证先关的交易策略是否生效
 """
 import math
+import time
 import datetime
 import pandas
 import matplotlib.pyplot as plt
@@ -128,8 +129,9 @@ def filter_next_up(base_data, filter_rst):
     base_data.sort_values(by=['trade_date'])
     trade_date = filter_rst['trade_date']
     # 将时间推后一天，看下一天的结果如何
-    trade_date = trade_date.apply(lambda x: (datetime.date(int(x[0:4]), int(x[4:6]), int(x[6:8])) + datetime.timedelta(days=1))
-                     .strftime("%Y%m%d"))
+    trade_date = trade_date.apply(
+        lambda x: (datetime.date(int(x[0:4]), int(x[4:6]), int(x[6:8])) + datetime.timedelta(days=1))
+        .strftime("%Y%m%d"))
     # 下面的方法返回一个Boolean序列
     ret_value = base_data['trade_date'].isin(trade_date)
     ret_value = base_data[ret_value.values]
@@ -241,15 +243,21 @@ def curr_win_percent(data_center, begin_date, end_date):
     :param end_date: 计算结束日期
     :return:
     """
+    total_time = 0
+    fetch_data_time = 0
+    time1 = time.clock()
     result = pandas.DataFrame(columns=['ts_code', 'max_up_percent', 'max_down_percent'])
     real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
     stock_list = data_center.fetch_stock_list()
+    total_time += (time.clock() - time1)
 
     win_count = 0
     all_count = 0
     for i in range(len(stock_list)):
+        time_value1 = datetime.datetime.now()
         base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
                                                               begin_date=begin_date, end_date=end_date)
+        fetch_data_time += (datetime.datetime.now() - time_value1).seconds
         if not base_data.empty and len(base_data) > 1:
             # 计算逻辑
             # 计算最大涨跌幅
@@ -257,6 +265,60 @@ def curr_win_percent(data_center, begin_date, end_date):
             if max_up_percent > 0.1 and base_data['close'][len(base_data) - 1] > base_data['close'][0]:
                 win_count += 1
             all_count += 1
+            result = result.append(
+                {"ts_code": stock_list[i][0], "max_up_percent": max_up_percent, "max_down_percent": max_down_percent},
+                ignore_index=True)
     extra_content = "win_count: %s, all_count: %s" % (win_count, all_count)
+    time1 = time.clock()
     FileOutput.csv_output(None, result, 'last_days_win.csv', extra_content)
+    total_time += (time.clock() - time1)
+    print("cost append time %d" % total_time)
+    print("fetch data time is: %d" % fetch_data_time)
     # FileOutput.csv_output(None, real_win_count, 'win_count_filter_15_up.csv')
+
+
+def windows_low_buy(data_center, windows=220, begin_date='20160101', end_date='20181231', meet_first_up=False):
+    """
+    计算一下超跌后首日上涨后赚钱效应怎么样，但是感觉上应该是嗝屁的
+    :param data_center:
+    :param windows:
+    :param begin_date:
+    :param end_date:
+    :return:
+    """
+    result = pandas.DataFrame(columns=['trade_date', 'ts_code', 'max_up_percent', 'max_down_percent',
+                                       'target_day_percent'])
+    stock_list = data_center.fetch_stock_list()
+
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date, end_date=end_date)
+        if not base_data.empty and len(base_data) > 1:
+            # 计算逻辑
+            low_index = FindLowStock.find_low_record_adv(base_data, windows)
+            thirty_after = base_data['close'].shift(-30)
+            base_data['target_day_percent'] = (thirty_after - base_data['close']) / base_data['close']
+            thirty_max = base_data['close'].shift(-30).rolling(30).max()
+            base_data['max_up_percent'] = (thirty_max - base_data['close']) / base_data['close']
+            thirty_min = base_data['close'].shift(-30).rolling(30).min()
+            base_data['max_down_percent'] = (thirty_min - base_data['close']) / base_data['close']
+
+            # 加下判定，历史低价价位之后，是否需要在首次上涨之后才去买入
+            if meet_first_up:
+                first_up_index = base_data['pct_chg'].shift(-1) > 0
+                temp_value = base_data[low_index & first_up_index]
+            else:
+                temp_value = base_data[low_index]
+            result = result.append(temp_value[['trade_date', 'ts_code', 'max_up_percent', 'max_down_percent',
+                                               'target_day_percent']])
+    file_name = "windows_low_buy_meet_up.csv" if meet_first_up else "windows_low_buy.csv"
+    FileOutput.csv_output(None, result, file_name)
+
+
+def slice_involve(data_center, start_number=10000):
+    """
+    定投的方式，看到这种方式的赚钱效应如何
+    :param data_center:
+    :return:
+    """
+    pass
