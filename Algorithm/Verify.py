@@ -321,4 +321,11 @@ def slice_involve(data_center, start_number=10000):
     :param data_center:
     :return:
     """
+    stock_list = data_center.fetch_stock_list()
+
+    # for i in range(len(stock_list)):
+    #     base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+    #                                                           begin_date=begin_date, end_date=end_date)
+    #     if not base_data.empty and len(base_data) > 1:
+    #         low_index = FindLowStock.find_low_record_adv(base_data)
     pass

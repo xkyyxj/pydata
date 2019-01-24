@@ -78,3 +78,39 @@ def find_low_and_has_up(base_data, up_percent, last_days, column):
     base_data['days_up_percent'] = (target_day_price - base_data[column]) / base_data[column]
     ret_index = base_data['days_up_percent'] >= up_percent & base_data['days_up_percent'] <= up_percent + 0.2
     return ret_index & low_index
+
+
+def find_has_up_stocks(data_center, windows=3, target_pct=0.2):
+    """
+    查找已经上涨的股票，基于以下理念：既然追涨杀跌，那么就看涨势启动的股票好了
+    :param data_center: 数据中心对象
+    :param windows: 连续windows天内上涨即算上涨
+    :param target_pct: @param windows之内上涨到的百分比加入到最终结果集当中
+    :return:
+    """
+    begin_date = datetime.datetime.now()
+    begin_date = begin_date - datetime.timedelta(days=20)
+    begin_date = begin_date.strftime("%Y%m%d")
+    end_date = datetime.datetime.now()
+    end_date = end_date.strftime("%Y%m%d")
+    result = pandas.Series()
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date, end_date=end_date)
+        if len(base_data > windows):
+            three_after = base_data['af_close'].shift(windows)
+            base_data['w_up_pct'] = (three_after - base_data['af_close']) / base_data['af_close']
+            up_pct_before=  base_data['w_up_pct'].shift(windows)
+            if up_pct_before.iloc[len(up_pct_before) - 1] > target_pct:
+                result.append(pandas.Series(stock_list[i][0]))
+    return result
+
+
+def find_term_stock(data_center):
+    """
+    寻找断片的股票
+    """
+    # TODO -- 后续补完
+    pass
+

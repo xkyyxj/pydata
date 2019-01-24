@@ -41,7 +41,7 @@ class DataPull:
     def pull_daily_info(self, code):
         data = self.__pro.daily()
 
-    def fetch_weight_factor_by_code(self, code):
+    def fetch_adj_factor_by_code(self, code):
         data = self.__pro.adj_factor(ts_code=code)
         return data
 

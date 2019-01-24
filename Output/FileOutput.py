@@ -12,9 +12,11 @@ windows_directory = 'D:\\pystock'
 def csv_output(stock_code, data, file_name, index=False, extra_content=None):
     """
     输出到CSV文件，利用DataFrame的to_csv比较方便简单，目前只支持这一种方式
+    :param extra_content: 附加内容，最终追加到CSV文件的底部
+    :param index: 
     :param file_name:
     :param stock_code:
-    :param data:
+    :param data: DataFrame类型，包含了主体数据
     :return:
     """
     create_workspace()

@@ -301,7 +301,7 @@ class DataCenter:
         """
         data = self.__datapull.pull_all_one_day(trade_date)
         self.__database.write_stock_info(data)
-        self.write_one_day_info_to_redis(data)
+        return data
 
     def fetch_adj_factor(self, ts_code, begin_date='20180101', end_date='20181231'):
         """
@@ -314,34 +314,65 @@ class DataCenter:
         date = datetime.date.today()
         date = date.strftime("%Y%m%d")
         local_data = self.__database.fetch_adj_factor(ts_code)
-        local_data.sort_index(axis=1)
+        local_data.sort_values(by=['trade_date'])
+        if len(local_data) == 0:
+            temp_adj_factor = self.__datapull.fetch_adj_factor_by_code(ts_code)
+            self.__database.write_adj_factor(temp_adj_factor)
+            temp_adj_factor = temp_adj_factor[(temp_adj_factor['trade_date'] >= begin_date) &
+                                              (temp_adj_factor['trade_date'] <= end_date)]
+            return temp_adj_factor
         if local_data.at[len(local_data) - 1, "trade_date"] < date:
             # 获取当前天的下一天
             last_day = local_data.at[len(local_data) - 1, "trade_date"]
             next_day = datetime.date(int(last_day[0:4]), int(last_day[4:6]), int(last_day[6:8]))
+            next_day += datetime.timedelta(days=1)
+            next_day = next_day.strftime("%Y%m%d")
             ret_value = self.fetch_adj_factor_until_now(next_day)
 
             # 选择出当前股票的信息对应的复权信息
             ret_value = ret_value[ret_value['ts_code'] == ts_code]
             local_data.append(ret_value)
-            local_data = local_data[(local_data['trade_date'] >= begin_date) & (local_data['trade_date'] <= end_date)]
-            local_data.index = range(len(local_data))   # 重新设置一下index，避免两Series相乘找不到对应位置
+        # 注意返回数据要根据@param begin_date和@param end_date过滤
+        local_data = local_data[(local_data['trade_date'] >= begin_date) & (local_data['trade_date'] <= end_date)]
+        local_data.index = range(len(local_data))   # 重新设置一下index，避免两Series相乘找不到对应位置
         return local_data
-        # data = self.__datapull.fetch_weight_factor(ts_code, date)
-        # if local_data.size <= 0 or (data.size > 0 and data.at[0, 'adj_factor'] !=
-        #                             local_data.at[len(local_data) - 1, 'adj_factor']):
-        #     data = self.__datapull.fetch_weight_factor(ts_code)
-        #     data.sort_index(axis=1)
-        #     insert_data = data[data.trade_date > local_data.at[len(local_data) - 1, 'trade_date']] \
-        #         if local_data.size > 0 else data
-        #     self.__database.write_adj_factor(insert_data)
-        #     ret_data = data[(data.trade_date >= begin_date) & (data.trade_date <= end_date)]
-        #     ret_data.index = range(len(ret_data))   # 重新设置一下index，避免两Series相乘找不到对应位置
-        #     return ret_data
-        # else:
-        #     ret_data = local_data[(local_data.trade_date >= begin_date) & (local_data.trade_date <= end_date)]
-        #     ret_data.index = range(len(ret_data))  # 重新设置一下index，避免两Series相乘找不到对应位置
-        #     return ret_data
+
+    def fetch_adj_factor_pure_database(self, ts_code, begin_date='20180101', end_date=None):
+        if end_date is None:
+            end_date = datetime.datetime.now()
+            end_date = end_date.strftime("%Y%m%d")
+        local_data = self.__database.fetch_adj_factor_by_code_date(ts_code, begin_date, end_date)
+        return local_data
+
+    def fetch_all_daily_info_until_now(self, trade_date, until_now=True):
+        """
+        按天获取所有的股票的信息，如果是@param until_now为True的话，那么一直获取到当天为止
+        该方法同时会获取相关的复权信息，同时将基本信息和复权信息做处理后写入到Redis缓存当中
+        :param stock_code:
+        :param trade_date:
+        :param until_now:
+        :return:
+        """
+        origin_trade_date = trade_date
+        if trade_date is None:
+            trade_date = datetime.datetime.now()
+            trade_date = trade_date.strftime("%Y%m%d")
+            self.fetch_all_base_one_day(trade_date=trade_date)
+        else:
+            now_time = datetime.datetime.now()
+            now_date = now_time.strftime("%Y%m%d")
+            temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
+            if trade_date < now_date and until_now:
+                temp_base_info = self.fetch_all_base_one_day(trade_date=trade_date)
+                temp_date += datetime.timedelta(days=1)
+                trade_date = temp_date.strftime("%Y%m%d")
+                while trade_date < now_date:
+                    temp_base_info = temp_base_info.append(self.fetch_all_base_one_day(trade_date=trade_date))
+                    temp_date += datetime.timedelta(days=1)
+                    trade_date = temp_date.strftime("%Y%m%d")
+            temp_adj_factor = self.fetch_adj_factor_until_now(trade_date=origin_trade_date)
+            # 将数据更新到Redis缓存当中
+            self.modify_redis_data_frame(trade_date, temp_base_info=temp_base_info, temp_adj_factor=temp_adj_factor)
 
     def fetch_adj_factor_until_now(self, trade_date, until_now=True):
         """
@@ -370,81 +401,45 @@ class DataCenter:
         return ret_value
 
     def init_adj_factor(self):
-        all_stock_list = self.fetch_stock_list(where="ts_code > '000518.SZ'")
-        for item in range(len(all_stock_list)):
-            ret_data = self.__datapull.fetch_weight_factor_by_code(all_stock_list[item][0])
-            self.__database.write_adj_factor(ret_data)
-            time.sleep(30)
-
-    def fetch_adj_factor_by_date(self, stock_code, begin_date='20180101', end_date='20181231'):
         """
-        从数据库当中获取复权因子，根据日期来获取，同获取基本信息差不多
-        --废弃
-        :param stock_code:
-        :param end_date: 结束日期
-        :param begin_date: 开始日期
-        :param ts_code: 股票tushare编码
+        获取所有的股票复权因子，同时写入到数据库当中
         :return:
         """
-        local_data = self.__database.fetch_adj_factor(stock_code)
+        all_stock_list = self.fetch_stock_list(where="ts_code > '603825.SH'")
+        for item in range(len(all_stock_list)):
+            ret_data = self.__datapull.fetch_adj_factor_by_code(all_stock_list[item][0])
+            self.__database.write_adj_factor(ret_data)
+            time.sleep(40)
 
-        if local_data.size == 0:
-            # 每当获取数据的时候，从tushare上直接获取整年的数据
-            temp_begin_date = datetime.date(int(begin_date[0:4]), 1, 1)
-            temp_begin_date = temp_begin_date.strftime("%Y%m%d")
-            temp_end_date = datetime.date(int(end_date[0:4]), 12, 31)
-            temp_end_date = temp_end_date.strftime("%Y%m%d")
-            ret_value = self.__datapull.fetch_weight_factor_by_code(stock_code)
-            self.__database.write_stock_info(ret_value)
-        else:
-            ret_value = local_data
-            ret_value.sort_index(axis=1)
-            # 获取没有数据的天数，此处需要往后推一天
-            temp_date = ret_value.at[len(ret_value) - 1, 'trade_date']
+    def init_base_info(self):
+        """
+        初始化基本信息，并且将基本信息写入到数据库当中
+        :return:
+        """
+        all_stock_list = self.fetch_stock_list(where="ts_code > '000001.SH'")
+        end_date = datetime.datetime.now()
+        end_date = end_date.strftime("%Y%m%d")
+        for item in range(len(all_stock_list)):
+            self.fetch_base_data(all_stock_list[item][0], begin_date='20160101', end_date=end_date)
+            time.sleep(30)
 
-            now_time = datetime.datetime.now()
-            now_time_str = now_time.strftime('%Y%m%d')
-            is_last_year = now_time_str[0:4] == temp_date[0:4]
-            need_date = datetime.date(int(temp_date[0:4]), int(temp_date[4:6]), int(temp_date[6:8]))
-            need_date += datetime.timedelta(days=1)
-            need_date = need_date.strftime("%Y%m%d")
-
-            # 同时查看下是不是数据库当中已经有相关年份的数据了
-            # 可能存在一种情况：要求的日期正好该只股票停牌，但是该年份的数据已经写入到数据库当中了
-            last_date = self.__database.is_exist_adj_factor(stock_code, end_date[0:4])
-            is_exist = last_date and int(last_date[6:8]) > 2
-            if temp_date < end_date and not is_exist:
-                if is_last_year:
-                    temp_begin_date = need_date
-                else:
-                    temp_begin_date = datetime.date(int(temp_date[0:4]) + 1, 1, 1)
-                    temp_begin_date = temp_begin_date.strftime("%Y%m%d")
-                if last_date:
-                    temp_end_date = datetime.date(int(last_date[0:4]), int(last_date[4:6]), int(last_date[6:8]))
-                    temp_end_date = temp_end_date.strftime("%Y%m%d")
-                else:
-                    temp_end_date = datetime.date(int(end_date[0:4]), 12, 31)
-                    temp_end_date = temp_end_date.strftime("%Y%m%d")
-                after_data = self.__datapull.fetch_weight_factor_by_code(stock_code)
-                self.__database.write_adj_factor(after_data)
-                after_data = after_data[after_data['trade_date'] <= end_date]
-                ret_value = ret_value.merge(after_data, how="outer")
-
-            # 获取没有数据的天数，此处需要往前推一天
-            temp_date = ret_value.at[0, 'trade_date']
-            need_date = datetime.date(int(temp_date[0:4]), int(temp_date[4:6]), int(temp_date[6:8]))
-            need_date -= datetime.timedelta(days=1)
-            need_date = need_date.strftime("%Y%m%d")
-
-            is_exist = self.__database.is_exist_adj_factor(stock_code, begin_date[0:4])
-            if temp_date > begin_date and not is_exist:
-                temp_begin_date = datetime.date(int(begin_date[0:4]), 1, 1)
-                temp_begin_date = temp_begin_date.strftime("%Y%m%d")
-                before_data = self.__datapull.fetch_weight_factor_by_code(stock_code)
-                self.__database.write_adj_factor(before_data)
-                before_data = before_data[before_data['trade_date'] >= begin_date]
-                ret_value = before_data.merge(ret_value, how="outer")
-        return ret_value
+    def init_redis_cache(self):
+        """
+        纯粹从数据库当中取出股票日交易信息和复权因子，并且计算后复权收盘价，写入到Redis缓存当中
+        :return:
+        """
+        all_stock_list = self.fetch_stock_list(where="ts_code > '000001.SH'")
+        for i in range(len(all_stock_list)):
+            base_data = self.fetch_base_data_pure_database(stock_code=all_stock_list[i][0], begin_date='20160101')
+            if len(base_data) > 0:
+                base_data = base_data.sort_values(by=['trade_date'])
+                adj_factor = self.fetch_adj_factor_pure_database(all_stock_list[i][0],
+                                                                 begin_date=base_data.at[0, 'trade_date'],
+                                                                 end_date=base_data.at[
+                                                                     len(base_data) - 1, 'trade_date'])
+                base_data['adj_factor'] = adj_factor['adj_factor']
+                base_data['af_close'] = base_data['close'] * adj_factor['adj_factor']
+                self.write_data_frame_to_redis(base_data)
 
     def fetch_stock_list(self, code=None, market='主板', where=''):
         """
@@ -484,21 +479,29 @@ class DataCenter:
         self.__database.write_index_list(data)
         return data
 
-    def fetch_base_data_pure_database(self, stock_code, begin_date='20180101', end_date='20181231'):
+    def fetch_base_data_pure_database(self, stock_code, begin_date, end_date=None):
         """
         纯粹从数据库当中获取相关的股票基本信息，如果没有也不从tushare当中获取
         :param stock_code:
-        :param begin_date:
-        :param end_date:
+        :param begin_date: 字符串类型
+        :param end_date: 字符串类型
         :return: 股票基本信息
         """
         # 首先从redis缓存当中取数据，通常情况下应该已经放入到redis缓存当中了
         # data = self.get_base_info_from_redis(stock_code, begin_date=begin_date, end_date=end_date)
         # 没有取到数据再从数据库当中取数据
         # if data is None or len(data) <= 0:
+        if end_date is None:
+            end_date = datetime.datetime.now()
+            end_date = end_date.strftime("%Y%m%d")
         data = self.get_data_frame_from_redis(stock_code)
         if data is None or len(data) == 0:
             data = self.__database.fetch_daily_info(stock_code, start_date=begin_date, end_date=end_date)
+
+        # 做下过滤
+        data = data[(data['trade_date'] >= begin_date) & (data['trade_date'] <= end_date)]
+        data = data.sort_values(by=['trade_date'])
+        data.index = range(len(data))
         return data
 
     def flush_data_to_redis(self):
@@ -524,3 +527,46 @@ class DataCenter:
                                                            begin_date='00000000', end_date='99991231')
             self.write_data_frame_to_redis(base_data)
 
+    def fetch_all_daily_info(self, trade_date=None, until_now=True):
+        """
+        按天获取所有的股票的信息，如果是@param until_now为True的话，那么一直获取到当天为止
+        :param stock_code:
+        :param trade_date:
+        :param until_now:
+        :return:
+        """
+        if trade_date is None:
+            trade_date = datetime.datetime.now()
+            trade_date = trade_date.strftime("%Y%m%d")
+            self.fetch_all_base_one_day(trade_date=trade_date)
+        else:
+            now_time = datetime.datetime.now()
+            now_date = now_time.strftime("%Y%m%d")
+            temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
+            if trade_date < now_date and until_now:
+                while trade_date < now_date:
+                    self.fetch_all_base_one_day(trade_date=trade_date)
+                    temp_date += datetime.timedelta(days=1)
+                    trade_date = temp_date.strftime("%Y%m%d")
+
+    def modify_redis_data_frame(self, start_date, temp_base_info=None, temp_adj_factor=None):
+        """
+        该方法用于在每天获取当天所有的日交易信息后调用，将最新获取的日交易信息更新到redis当中
+        这个方法目前会计算后复权收盘价，并且将复权因子顺便写入到了基本信息的DataFrame当中，并且写入到redis缓存当中
+        :return:
+        """
+        results = temp_base_info if temp_base_info is not None else \
+            self.__database.fetch_all_daily_info_by_date(start_date=start_date)
+        all_adj_factor = temp_adj_factor if temp_adj_factor is not None else \
+            self.__database.fetch_all_adj_factor_by_date(start_date=start_date)
+        stock_list = self.fetch_stock_list()
+        for i in range(len(stock_list)):
+            base_info = self.get_data_frame_from_redis(stock_code=stock_list[i][0])
+            temp_base_info = results[results['ts_code'] == stock_list[i][0]]
+            temp_adj_factor = all_adj_factor[all_adj_factor['ts_code'] == stock_list[i][0]]
+            temp_base_info.index = range(len(temp_base_info))
+            temp_adj_factor.index = range(len(temp_adj_factor))
+            temp_base_info['af_close'] = temp_base_info['close'] * temp_adj_factor['adj_factor']
+            temp_base_info['adj_factor'] = temp_adj_factor['adj_factor']
+            base_info = base_info.append(temp_base_info)
+            self.write_data_frame_to_redis(base_info)

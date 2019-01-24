@@ -11,9 +11,11 @@ import matplotlib.pyplot as plt
 import tushare
 import Data.DataCenter
 import Algorithm.Calculator as Calculator
+import Output.FileOutput as FileOutput
 import Algorithm.Verify as Verify
 import redis
 import json
+import DailyUtils.FindLowStock as FindLowStock
 
 data_center = Data.DataCenter.DataCenter()
 
@@ -66,7 +68,21 @@ def write_base_info_to_redis(write_form='JSON'):
         data_center.flush_data_frame_to_redis()
 
 
-data_center.init_adj_factor()
+# data_center.init_redis_cache()
+datafram1 = data_center.get_data_frame_from_redis('600017.SH')
+# data_center.modify_redis_data_frame("20190119")
+# frame1 = pandas.DataFrame([[1, 2], [2, 4]], columns=("1", '2'))
+# frame2 = pandas.DataFrame([[1], [2]], columns=('3',))
+# frame1['4'] = frame1['1'] * frame2['3']
+# print(frame1)
+# result = Calculator.cal_wave_hot(data_center, windows=40, column='af_close',wave_percent=0.7, curr_days=True)
+# result = FindLowStock.find_has_up_stocks
+# dataframe1 = pandas.DataFrame(result, columns=("ts_code",))
+# FileOutput.csv_output(None, result, "hot_stock.csv")
+
+# fetch_all_daily_info('20190105', True)
+
+# data_center.init_adj_factor()
 
 # fetch_all_daily_info(trade_date='20181227', until_now=True)
 

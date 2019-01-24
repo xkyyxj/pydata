@@ -36,6 +36,16 @@ class MySQLDB:
         # results = np.array(self.__cursor.fetchall())
         return results
 
+    def fetch_all_daily_info_by_date(self, start_date):
+        """
+        从数据库当中获取所有的股票的日交易信息，从@param start_date开始
+        :param start_date: 获取的所有股票日交易信息的开始日期
+        :return:
+        """
+        query_sql = "select * from stock_base_info where trade_date >= %s"
+        results = pandas.read_sql(query_sql, con=self.__engine, params=(start_date,))
+        return results
+
     def fetch_adj_daily_info(self, code, start_date='20180101', end_date='20181231'):
         """
         tushare有接口，能够获取前后复权之后的股价信息，但是这个方法还未经验证，可以自己算前后复权价格
@@ -92,6 +102,33 @@ class MySQLDB:
         query_sql = "select adj_factor.* from stock_base_info left join adj_factor " \
                     "on stock_base_info.trade_date=adj_factor.trade_date where adj_factor.ts_code=%s"
         result = pandas.read_sql(query_sql, con=self.__engine, params=(code,))
+        return result
+
+    def fetch_all_adj_factor_by_date(self, start_date, end_date='99991231'):
+        """
+        一次性从数据库当中获取所有股票的复权因子，从@param start_date之后开始
+        :param start_date:
+        :return:
+        """
+        query_sql = "select * from adj_factor where trade_date>=%s and trade_date in " \
+                    "(select trade_date from stock_base_info where ts_code=adj_factor.ts_code and " \
+                    "trade_date>=%s)"
+        result = pandas.read_sql(query_sql, con=self.__engine, params=(start_date, start_date))
+        return result
+
+    def fetch_adj_factor_by_code_date(self, stock_code, begin_date, end_date):
+        """
+        从数据库当中获取复权因子，根据股票编码以及开始结束日期过滤
+        :param end_date:
+        :param begin_date:
+        :param stock_code:
+        :return:
+        """
+        query_sql = "select adj_factor.* from stock_base_info left join adj_factor " \
+                    "on stock_base_info.trade_date=adj_factor.trade_date " \
+                    "and stock_base_info.ts_code=adj_factor.ts_code where adj_factor.ts_code=%s " \
+                    "and adj_factor.trade_date>=%s and adj_factor.trade_date<= %s"
+        result = pandas.read_sql(query_sql, con=self.__engine, params=(stock_code, begin_date, end_date))
         return result
 
     def write_adj_factor(self, data):
