@@ -76,12 +76,12 @@ def cal_wave_hot(data_center, windows=30, wave_percent=0.2, column='close', curr
                 min_price_i = base_data[column].idxmin()
                 if max_price_i > min_price_i:
                     t_wave_percent = (base_data.at[max_price_i, column] - base_data.at[min_price_i, column]) / \
-                                      base_data.at[min_price_i, column]
+                                     base_data.at[min_price_i, column]
                     t_start_date = base_data.at[min_price_i, 'trade_date']
                     t_end_date = base_data.at[max_price_i, 'trade_date']
                 else:
                     t_wave_percent = (base_data.at[min_price_i, column] - base_data.at[max_price_i, column]) / \
-                                      base_data.at[max_price_i, column]
+                                     base_data.at[max_price_i, column]
                     t_start_date = base_data.at[max_price_i, 'trade_date']
                     t_end_date = base_data.at[min_price_i, 'trade_date']
                 temp_dict = {'ts_code': stock_list[i][0], 'start_date': t_start_date, 'wave_percent': t_wave_percent,
@@ -99,3 +99,73 @@ def cal_wave_hot(data_center, windows=30, wave_percent=0.2, column='close', curr
 
     return result
 
+
+def cal_big_wave_stock(data_center, column='af_close'):
+    """
+    计算并得出一个月内波动幅度很大的股票
+    TODO -- 待验证(寻找一个月内波动幅度比较大的股票)
+    :param data_center: 数据中心对象
+    :param column: 默认采用哪一列计算最终的结果
+    :return: 返回DataFrame, 包含股票的列表以及最终的最大涨幅
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'max_up_percent'))
+    start_date = datetime.datetime.now()
+    start_date = start_date + datetime.timedelta(days=-30)
+    start_date = start_date.strftime("%Y%m%d")
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=start_date)
+        if not base_data.empty and len(base_data) > 0:
+            min_price = base_data.at[0, column]
+            max_price = base_data.at[0, column]
+            up_count = 0  # 上涨达到10%的天数
+            down_count = 0  # 下跌达到10%的天数
+            max_wave_pct = -100
+            for j in range(len(base_data)):
+                if base_data.at[j, column] < min_price:
+                    min_price = base_data.at[j, column]
+                if base_data.at[j, column] > max_price:
+                    max_price = base_data.at[j, column]
+
+                wave_pct_up = (base_data.at[j, column] - min_price) / min_price
+                wave_pct_down = (base_data.at[j, column] - max_price) / max_price
+                # 统计一下最大涨幅
+                if wave_pct_up > max_wave_pct:
+                    max_wave_pct = wave_pct_up
+                up_count += 1 if wave_pct_up > 0.1 else 0
+                down_count += 1 if wave_pct_down < -0.1 else 0
+
+            # 上涨和下跌的天数相近的时候我们就算作OK
+            min_count = up_count if up_count < down_count else down_count
+            if min_count != 0 and (up_count + down_count) / min_count - 1 < 1.1:
+                result = result.append({'ts_code': stock_list[i][0], "max_wave_pct": max_wave_pct}, ignore_index=True)
+    return result
+
+
+def cal_wave_high(data_center, start_date=None):
+    """
+    采用统计的方式，计算波动百分比的标准差，从而确定波动幅度比较大的
+    该方法适用于近期波动幅度比较大的情况
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'std_value'))
+    if start_date is None:
+        start_date = datetime.datetime.now()
+        start_date = start_date + datetime.timedelta(days=-30)
+        start_date = start_date.strftime("%Y%m%d")
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=start_date)
+        std_value = base_data['pct_chg'].std()
+        result = result.append({'ts_code': stock_list[i][0], 'std_value': std_value}, ignore_index=True)
+    result = result.sort_values(by=['std_value'], ascending=False)
+    # 注意需要重新规整下result的index，不然下面的loc方法不能返回正确的数据
+    result.index = range(len(result))
+
+    middle_index = int(len(result) / 2)
+    middle_wave = result.loc[middle_index - 15: middle_index + 15]
+
+    final_result = result.loc[0:30]
+    final_result = final_result.append(middle_wave)
+    return final_result

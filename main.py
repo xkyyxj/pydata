@@ -68,8 +68,17 @@ def write_base_info_to_redis(write_form='JSON'):
         data_center.flush_data_frame_to_redis()
 
 
+print(int(3/2))
+# 计算波动幅度较大的股票
+# result = Verify.three_max_stock(data_center)
+# FileOutput.csv_output(None, result, 'three_max_up.csv')
+# result = Calculator.cal_wave_high(data_center)
+# FileOutput.csv_output(None, result, 'wave_high_hand.csv')
+data_center.init_adj_factor()
+
+# data_center.fetch_all_daily_info_until_now('20190119')
 # data_center.init_redis_cache()
-datafram1 = data_center.get_data_frame_from_redis('600017.SH')
+# datafram1 = data_center.get_data_frame_from_redis('600017.SH')
 # data_center.modify_redis_data_frame("20190119")
 # frame1 = pandas.DataFrame([[1, 2], [2, 4]], columns=("1", '2'))
 # frame2 = pandas.DataFrame([[1], [2]], columns=('3',))

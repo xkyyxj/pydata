@@ -131,7 +131,7 @@ def filter_next_up(base_data, filter_rst):
     # 将时间推后一天，看下一天的结果如何
     trade_date = trade_date.apply(
         lambda x: (datetime.date(int(x[0:4]), int(x[4:6]), int(x[6:8])) + datetime.timedelta(days=1))
-        .strftime("%Y%m%d"))
+            .strftime("%Y%m%d"))
     # 下面的方法返回一个Boolean序列
     ret_value = base_data['trade_date'].isin(trade_date)
     ret_value = base_data[ret_value.values]
@@ -329,3 +329,45 @@ def slice_involve(data_center, start_number=10000):
     #     if not base_data.empty and len(base_data) > 1:
     #         low_index = FindLowStock.find_low_record_adv(base_data)
     pass
+
+
+def three_max_stock(data_center):
+    """
+    连续三个涨停板的股票到底如何，亟待验证
+    TODO -- 验证下连续三个涨停板的股票在历史上都是怎么样的
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'start_date', 'one_day_pct', 'two_day_pct'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101', end_date='20181217')
+        if not base_data.empty and len(base_data) > 0:
+            one_day_pct = base_data['pct_chg'].shift(-1)
+            two_day_pct = base_data['pct_chg'].shift(-2)
+            three_up_series = (base_data['pct_chg'] > 9) & (one_day_pct > 9) & (two_day_pct > 9)
+
+            buy_day_price = base_data['af_close'].shift(-2)
+            one_day_shift_price = base_data['af_close'].shift(-3)
+            two_day_shift_price = base_data['af_close'].shift(-4)
+            base_data['one_day_pct'] = (one_day_shift_price - buy_day_price) / buy_day_price
+            base_data['two_day_pct'] = (two_day_shift_price - buy_day_price) / buy_day_price
+            base_data['start_date'] = base_data['trade_date'].shift(-2)
+
+            # 三日涨停
+            temp_three = base_data[three_up_series]
+            temp_three = temp_three.loc[:, ['ts_code', 'start_date', 'one_day_pct', 'two_day_pct']]
+            result = result.append(temp_three)
+        # max_up_count = 0
+        # for j in range(len(base_data)):
+        #     if base_data.at[j, 'pct_chg'] > 9 and max_up_count < 3:
+        #         max_up_count += 1
+        #     if max_up_count >= 3:
+        #         target_index = j + 5
+        #         if target_index < len(base_data):
+        #             pct_chg = (base_data.at[target_index, 'af_close'] - base_data.at[j, 'af_close']) / \
+        #                     base_data.at[j, 'af_close']
+        #             result = result.append({'ts_code': stock_list[i][0], 'start_date': base_data.at[j, 'trade_date'],
+        #                         'wave_pct': pct_chg}, ignore_index=True)
+    return result

@@ -221,7 +221,7 @@ class DataCenter:
         :param end_date:
         :return:
         """
-        local_data = self.get_base_info_from_redis(stock_code, begin_date, end_date)
+        local_data = self.get_data_frame_from_redis(stock_code)
         if local_data.empty:
             local_data = self.__database.fetch_daily_info(stock_code, begin_date, end_date)
 
@@ -242,7 +242,6 @@ class DataCenter:
             self.write_base_info_to_redis(stock_code, ret_value)
         else:
             ret_value = local_data
-            self.write_base_info_to_redis(stock_code, ret_value)
             ret_value.sort_index(axis=1)
             # 获取没有数据的天数，此处需要往后推一天
             temp_date = ret_value.at[len(ret_value) - 1, 'trade_date']
@@ -274,7 +273,6 @@ class DataCenter:
                 self.__database.write_stock_info(after_data)
                 after_data = after_data[after_data['trade_date'] <= end_date]
                 ret_value = ret_value.merge(after_data, how="outer")
-                self.write_base_info_to_redis(stock_code, after_data)
 
             # 获取没有数据的天数，此处需要往前推一天
             temp_date = ret_value.at[0, 'trade_date']
@@ -290,7 +288,7 @@ class DataCenter:
                 self.__database.write_stock_info(before_data)
                 before_data = before_data[before_data['trade_date'] >= begin_date]
                 ret_value = before_data.merge(ret_value, how="outer")
-                self.write_base_info_to_redis(stock_code, before_data, "before")
+        self.write_data_frame_to_redis(ret_value)
         return ret_value
     
     def fetch_all_base_one_day(self, trade_date):
@@ -405,23 +403,25 @@ class DataCenter:
         获取所有的股票复权因子，同时写入到数据库当中
         :return:
         """
-        all_stock_list = self.fetch_stock_list(where="ts_code > '603825.SH'")
+        all_stock_list = self.fetch_stock_list(where="ts_code not in (select ts_code from adj_factor)", market=None)
         for item in range(len(all_stock_list)):
             ret_data = self.__datapull.fetch_adj_factor_by_code(all_stock_list[item][0])
             self.__database.write_adj_factor(ret_data)
-            time.sleep(40)
+            time.sleep(1)
 
     def init_base_info(self):
         """
         初始化基本信息，并且将基本信息写入到数据库当中
+        现在默认是fetch从2016年1月1日开始的基本数据
         :return:
         """
-        all_stock_list = self.fetch_stock_list(where="ts_code > '000001.SH'")
+        all_stock_list = self.fetch_stock_list(where="ts_code not in (select ts_code from stock_base_info)")
         end_date = datetime.datetime.now()
         end_date = end_date.strftime("%Y%m%d")
         for item in range(len(all_stock_list)):
-            self.fetch_base_data(all_stock_list[item][0], begin_date='20160101', end_date=end_date)
-            time.sleep(30)
+            result = self.__datapull.pull_data(all_stock_list[item][0], start_date='20160101', end_date=end_date)
+            self.__database.write_stock_info(result)
+            time.sleep(1)
 
     def init_redis_cache(self):
         """
@@ -449,7 +449,7 @@ class DataCenter:
         :param where:
         :return:
         """
-        local_data = self.__database.fetch_stock_list(code, where=where)
+        local_data = self.__database.fetch_stock_list(code, where=where, market=market)
         if not local_data or (code is not None and len(code) > 0 and not code.isspace() and code not in local_data):
             stock_list = self.__datapull.fetch_stock_list()
             self.__database.write_stock_list(stock_list)
@@ -566,7 +566,9 @@ class DataCenter:
             temp_adj_factor = all_adj_factor[all_adj_factor['ts_code'] == stock_list[i][0]]
             temp_base_info.index = range(len(temp_base_info))
             temp_adj_factor.index = range(len(temp_adj_factor))
-            temp_base_info['af_close'] = temp_base_info['close'] * temp_adj_factor['adj_factor']
-            temp_base_info['adj_factor'] = temp_adj_factor['adj_factor']
+            temp_af_close = temp_base_info['close'] * temp_adj_factor['adj_factor']
+            temp_base_info.loc[:, 'af_close'] = temp_af_close
+            temp_base_info.loc[:, 'adj_factor'] = temp_adj_factor['adj_factor']
             base_info = base_info.append(temp_base_info)
+            base_info.index = range(len(base_info))
             self.write_data_frame_to_redis(base_info)
