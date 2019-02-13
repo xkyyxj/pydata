@@ -7,6 +7,7 @@ import pandas
 
 
 windows_directory = 'D:\\pystock'
+linux_directory = '/home/cassiopeia/pystock'
 
 
 def csv_output(stock_code, data, file_name, index=False, extra_content=None):
@@ -20,11 +21,12 @@ def csv_output(stock_code, data, file_name, index=False, extra_content=None):
     :return:
     """
     create_workspace()
+    real_directory = windows_directory if os.name == 'nt' else linux_directory
     if stock_code is not None:
         create_spe_dir(stock_code)
-        path = os.path.join(windows_directory, [stock_code, 'file1'])
+        path = os.path.join(real_directory, [stock_code, 'file1'])
     else:
-        path = os.path.join(windows_directory, 'file_' + file_name)
+        path = os.path.join(real_directory, 'file_' + file_name)
     if os.path.exists(path):
         os.remove(path)
     output_file = open(path, 'w')
@@ -39,13 +41,16 @@ def create_workspace():
     if os.name == 'nt':
         if not os.path.exists(windows_directory):
             os.mkdir(windows_directory)
+    else:
+        if not os.path.exists(linux_directory):
+            os.mkdir(linux_directory)
 
 
 def create_spe_dir(stock_code):
     create_workspace()
-    if os.name == 'nt':
-        path = os.path.join(windows_directory, stock_code)
-        os.mkdir(path)
+    real_directory = windows_directory if os.name == 'nt' else linux_directory
+    path = os.path.join(real_directory, stock_code)
+    os.mkdir(path)
 
 
 def create_write_content(data):

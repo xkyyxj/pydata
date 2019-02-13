@@ -70,11 +70,11 @@ def write_base_info_to_redis(write_form='JSON'):
 
 print(int(3/2))
 # 计算波动幅度较大的股票
-# result = Verify.three_max_stock(data_center)
-# FileOutput.csv_output(None, result, 'three_max_up.csv')
+result = Verify.three_max_stock(data_center)
+FileOutput.csv_output(None, result, 'three_max_up.csv')
 # result = Calculator.cal_wave_high(data_center)
 # FileOutput.csv_output(None, result, 'wave_high_hand.csv')
-data_center.init_adj_factor()
+# data_center.init_adj_factor()
 
 # data_center.fetch_all_daily_info_until_now('20190119')
 # data_center.init_redis_cache()

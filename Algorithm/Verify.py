@@ -342,11 +342,12 @@ def three_max_stock(data_center):
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
         base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101', end_date='20181217')
+                                                              begin_date='20160101', end_date='20190130')
         if not base_data.empty and len(base_data) > 0:
             one_day_pct = base_data['pct_chg'].shift(-1)
             two_day_pct = base_data['pct_chg'].shift(-2)
-            three_up_series = (base_data['pct_chg'] > 9) & (one_day_pct > 9) & (two_day_pct > 9)
+            before_day_pct = base_data['pct_chg'].shift(1)
+            three_up_series = (base_data['pct_chg'] > 9) & (one_day_pct > 9) & (two_day_pct > 9) & (before_day_pct < 9)
 
             buy_day_price = base_data['af_close'].shift(-2)
             one_day_shift_price = base_data['af_close'].shift(-3)
@@ -370,4 +371,41 @@ def three_max_stock(data_center):
         #                     base_data.at[j, 'af_close']
         #             result = result.append({'ts_code': stock_list[i][0], 'start_date': base_data.at[j, 'trade_date'],
         #                         'wave_pct': pct_chg}, ignore_index=True)
+    return result
+
+
+def one_max_up(data_center, max_up_days=1):
+    """
+    :param max_up_days天涨停之后的情况是什么样的？
+    :param max_up_days:
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'start_date', 'one_day_pct', 'two_day_pct'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101', end_date='20190130')
+        if not base_data.empty and len(base_data) > 0:
+            up_index = None
+            for j in range(max_up_days):
+                temp_pct = base_data['pct_chg'].shift(-j)
+                if j == 0:
+                    up_index = temp_pct > 9
+                else:
+                    up_index = up_index & (temp_pct > 9)
+            before_day_pct = base_data['pct_chg'].shift(1)
+            up_index = up_index & (before_day_pct < 9)
+
+            buy_day_price = base_data['af_close'].shift(-max_up_days + 1)
+            one_day_shift_price = base_data['af_close'].shift(-max_up_days)
+            two_day_shift_price = base_data['af_close'].shift(-max_up_days - 1)
+            base_data['one_day_pct'] = (one_day_shift_price - buy_day_price) / buy_day_price
+            base_data['two_day_pct'] = (two_day_shift_price - buy_day_price) / buy_day_price
+            base_data['start_date'] = base_data['trade_date'].shift(-max_up_days + 1)
+
+            # :param max_up_days天之内涨停
+            temp_rst = base_data[up_index]
+            temp_rst = temp_rst.loc[:, ['ts_code', 'start_date', 'one_day_pct', 'two_day_pct']]
+            result = result.append(temp_rst)
     return result
