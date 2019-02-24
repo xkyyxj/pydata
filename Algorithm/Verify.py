@@ -409,3 +409,21 @@ def one_max_up(data_center, max_up_days=1):
             temp_rst = temp_rst.loc[:, ['ts_code', 'start_date', 'one_day_pct', 'two_day_pct']]
             result = result.append(temp_rst)
     return result
+
+
+def low_af_high_buy(data_center):
+    """
+    冲高回落之后的低谷买入，看这种情况怎么样
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'start_date', 'one_day_pct', 'two_day_pct'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty and len(base_data) > 0:
+            pro_data = base_data['af_close'].rolling(window=30)
+
+
+

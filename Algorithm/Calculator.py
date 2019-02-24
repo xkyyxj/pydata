@@ -169,3 +169,103 @@ def cal_wave_high(data_center, start_date=None):
     final_result = result.loc[0:30]
     final_result = final_result.append(middle_wave)
     return final_result
+
+
+def get_max_up_stock(data_center, up_days=2):
+    """
+    得到最近两天涨幅在9%以上的,geige qingdan 。
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20190101')
+        if not base_data.empty and len(base_data) > up_days:
+            can_add = True
+            for j in range(up_days):
+                can_add = base_data.at[len(base_data) - j - 1, 'pct_chg'] > 9
+                if not can_add:
+                    break
+            if can_add:
+                result = result.append({'ts_code': stock_list[i][0], 'name': stock_list[i][2]}, ignore_index=True)
+    return result
+
+
+def get_his_max_up_pct(data_center, max_up_days=2, order_days=1):
+    """
+    追涨停，查看历史信息，该只股票连续:param max_up_days天涨停之后买入，:param order_days天持有期后，
+    按照平均收益率排序
+    :param order_days: 买入后持有多少天的收益率排序
+    :param max_up_days: 最强上涨N天之后买入
+    :param data_center: 数据中心，获取数据使用
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'order_days_ave_pct', 'match_count'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty and len(base_data) > 0:
+            up_index = None
+            for j in range(max_up_days):
+                temp_pct = base_data['pct_chg'].shift(-j)
+                if j == 0:
+                    up_index = temp_pct > 9
+                else:
+                    up_index = up_index & (temp_pct > 9)
+            before_day_pct = base_data['pct_chg'].shift(1)
+            up_index = up_index & (before_day_pct < 9)
+
+            buy_day_price = base_data['af_close'].shift(-max_up_days + 1)
+            order_days_price = base_data['af_close'].shift(-max_up_days - order_days + 1)
+            base_data['start_date'] = base_data['trade_date'].shift(-max_up_days + 1)
+            base_data['order_days_pct'] = (order_days_price - buy_day_price) / buy_day_price
+
+            # :param max_up_days天之内涨停
+            temp_rst = base_data[up_index]
+            order_days_ave_pct = temp_rst['order_days_pct'].mean()
+            result = result.append({'ts_code': stock_list[i][0], 'order_days_ave_pct': order_days_ave_pct,
+                                    'match_count': len(temp_rst)},
+                                   ignore_index=True)
+    result = result.sort_values(by=['order_days_ave_pct'])
+    return result
+
+
+def find_has_up_some(data_center):
+    """
+    查找已经上涨了一部分的股票，目标如下：
+    1. 最近10天上涨了20%
+    2. 一直处于上涨的走势当中，下跌都是微跌
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'up_pct', 'name'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty and len(base_data) > 0:
+            temp_base_data = base_data.sort_values(by=['trade_date'], ascending=False)
+            temp_base_data.index = range(len(temp_base_data))
+            temp_base_data = temp_base_data.loc[0:10]
+            pre_day_af_close = temp_base_data['af_close'].shift(1)
+            temp_base_data['af_pct_chg'] = (temp_base_data['af_close'] - pre_day_af_close) / pre_day_af_close
+
+            # 期间之内的下跌幅度不能超过4%
+            down_days = temp_base_data[temp_base_data['af_pct_chg'] < 0.04]
+            if down_days.empty:
+                continue
+
+            # 最后一天相比于这期间的最低价，已经上涨了20%
+            min_price = temp_base_data['af_close'].min()
+            curr_price = temp_base_data.at[0, 'af_close']
+            up_pct = (curr_price - min_price) / min_price
+            if up_pct > 0.2:
+                result = result.append({'ts_code': stock_list[i][0], 'up_pct': up_pct, 'name': stock_list[i][2]},
+                                       ignore_index=True)
+    return result
+
+
+
+
+
+

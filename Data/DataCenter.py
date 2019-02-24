@@ -352,6 +352,7 @@ class DataCenter:
         :return:
         """
         origin_trade_date = trade_date
+        temp_base_info = pandas.DataFrame()
         if trade_date is None:
             trade_date = datetime.datetime.now()
             trade_date = trade_date.strftime("%Y%m%d")
@@ -360,7 +361,7 @@ class DataCenter:
             now_time = datetime.datetime.now()
             now_date = now_time.strftime("%Y%m%d")
             temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
-            if trade_date < now_date and until_now:
+            if trade_date <= now_date and until_now:
                 temp_base_info = self.fetch_all_base_one_day(trade_date=trade_date)
                 temp_date += datetime.timedelta(days=1)
                 trade_date = temp_date.strftime("%Y%m%d")
@@ -389,7 +390,7 @@ class DataCenter:
             now_time = datetime.datetime.now()
             now_date = now_time.strftime("%Y%m%d")
             temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
-            if trade_date < now_date and until_now:
+            if trade_date <= now_date and until_now:
                 while trade_date <= now_date:
                     ret_value = ret_value.append(self.__datapull.fetch_adj_factor_by_date(trade_date=trade_date))
                     temp_date += datetime.timedelta(days=1)
@@ -496,7 +497,18 @@ class DataCenter:
             end_date = end_date.strftime("%Y%m%d")
         data = self.get_data_frame_from_redis(stock_code)
         if data is None or len(data) == 0:
+            # 发现有一种奇怪的情况：某些情况下Redis缓存当中没有相关的数据，所以直接从数据库取出来的数据没有
+            # 后复权价格，导致程序崩溃，所以此处重新计算一下并将其写入到Redis当中
             data = self.__database.fetch_daily_info(stock_code, start_date=begin_date, end_date=end_date)
+            if data is not None and not data.empty:
+                data = data.sort_values(by=['trade_date'])
+                adj_factor = self.fetch_adj_factor_pure_database(stock_code,
+                                                                 begin_date=data.at[0, 'trade_date'],
+                                                                 end_date=data.at[
+                                                                     len(data) - 1, 'trade_date'])
+                data['adj_factor'] = adj_factor['adj_factor']
+                data['af_close'] = data['close'] * adj_factor['adj_factor']
+                self.write_data_frame_to_redis(data)
 
         # 做下过滤
         data = data[(data['trade_date'] >= begin_date) & (data['trade_date'] <= end_date)]

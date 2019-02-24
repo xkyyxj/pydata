@@ -68,13 +68,41 @@ def write_base_info_to_redis(write_form='JSON'):
         data_center.flush_data_frame_to_redis()
 
 
-print(int(3/2))
-# 计算波动幅度较大的股票
-result = Verify.three_max_stock(data_center)
-FileOutput.csv_output(None, result, 'three_max_up.csv')
+def get_max_up_stock(data_cen):
+    """
+    日常函数，用于获取连续N天涨停股票
+    :param data_cen:
+    :return:
+    """
+    result = Calculator.get_max_up_stock(data_cen)
+    FileOutput.csv_output(None, result, 'two_up_stock.csv')
+
+
+def fetch_base_info_daily(data_cen, trade_date):
+    """
+    获取股票的基本信息
+    :param data_cen:
+    :param trade_date:
+    :return:
+    """
+    data_cen.fetch_all_daily_info_until_now(trade_date)
+
+
+# fetch_base_info_daily(data_center, "20190221")
+# data_center.init_redis_cache()
+# fetch_base_info_daily(data_center, '20190215')
+# result = Calculator.get_his_max_up_pct(data_center)
+# FileOutput.csv_output(None, result, 'up_win_pct_stock.csv')
+result = Calculator.get_max_up_stock(data_center)
+FileOutput.csv_output(None, result, 'two_up_stock_20190223.csv')
+# result = Verify.three_max_stock(data_center)
+# FileOutput.csv_output(None, result, 'three_max_up.csv')
 # result = Calculator.cal_wave_high(data_center)
 # FileOutput.csv_output(None, result, 'wave_high_hand.csv')
 # data_center.init_adj_factor()
+
+# result = Calculator.find_has_up_some(data_center)
+# FileOutput.csv_output(None, result, 'has_up_10_pct_20190223.csv')
 
 # data_center.fetch_all_daily_info_until_now('20190119')
 # data_center.init_redis_cache()
