@@ -112,18 +112,21 @@ def fetch_base_info_daily(data_cen, trade_date):
     data_cen.fetch_all_daily_info_until_now(trade_date)
 
 
-# fetch_base_info_daily(data_center, "20190306")
+# fetch_base_info_daily(data_center, "20190307")
 # data_center.init_redis_cache()
 # fetch_base_info_daily(data_center, '20190215')
 # result = Calculator.get_his_max_up_pct(data_center)
 # FileOutput.csv_output(None, result, 'up_win_pct_stock.csv')
-result = Calculator.get_max_up_stock(data_center, up_days=2)
-FileOutput.csv_output(None, result, 'one_up_stock_20190307.csv')
+# result = Calculator.get_max_up_stock(data_center, up_days=2)
+# FileOutput.csv_output(None, result, 'one_up_stock_20190307.csv')
 # result = Verify.three_max_stock(data_center)
 # FileOutput.csv_output(None, result, 'three_max_up.csv')
 # result = Calculator.cal_wave_high(data_center)
 # FileOutput.csv_output(None, result, 'wave_high_hand.csv')
 # data_center.init_adj_factor()
+
+result = Calculator.find_has_up_some(data_center)
+FileOutput.csv_output(None, result, "has_up_10_pct_ave_year_2018.csv")
 
 # result = Calculator.find_has_up_some(data_center)
 # FileOutput.csv_output(None, result, 'has_up_10_pct_20190307.csv')

@@ -230,7 +230,7 @@ def get_his_max_up_pct(data_center, max_up_days=2, order_days=1):
     return result
 
 
-def find_has_up_some(data_center):
+def find_has_up_some(data_center, begin_date=None, end_date=None):
     """
     查找已经上涨了一部分的股票，目标如下：
     1. 最近10天上涨了20%
@@ -238,32 +238,49 @@ def find_has_up_some(data_center):
     :param data_center:
     :return:
     """
-    result = pandas.DataFrame(columns=('ts_code', 'up_pct', 'name'))
+    result = None
     stock_list = data_center.fetch_stock_list()
+    if begin_date is not None and end_date is not None:
+        result = pandas.DataFrame(columns=('ts_code', 'up_pct', 'name', 'begindate'))
+    else:
+        result = pandas.DataFrame(columns=('ts_code', 'up_pct', 'name'))
     for i in range(len(stock_list)):
         base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
                                                               begin_date='20160101')
-        if not base_data.empty and len(base_data) > 0:
-            temp_base_data = base_data.sort_values(by=['trade_date'], ascending=False)
-            temp_base_data.index = range(len(temp_base_data))
-            temp_base_data = temp_base_data.loc[0:10]
-            pre_day_af_close = temp_base_data['af_close'].shift(1)
-            temp_base_data['af_pct_chg'] = (temp_base_data['af_close'] - pre_day_af_close) / pre_day_af_close
-
-            # 期间之内的下跌幅度不能超过4%
-            down_days = temp_base_data[temp_base_data['af_pct_chg'] < 0.04]
-            if down_days.empty:
-                continue
-
-            # 最后一天相比于这期间的最低价，已经上涨了20%
-            min_price = temp_base_data['af_close'].min()
-            curr_price = temp_base_data.at[0, 'af_close']
-            up_pct = (curr_price - min_price) / min_price
-            if up_pct > 0.2:
-                result = result.append({'ts_code': stock_list[i][0], 'up_pct': up_pct, 'name': stock_list[i][2]},
-                                       ignore_index=True)
+        if begin_date is not None and end_date is not None:
+            begin_date_time = datetime.date(int(begin_date[0:4]), int(begin_date[4:6]), int(begin_date[6:8]))
+            end_date_time = datetime.date(int(end_date[0:4]), int(end_date[4:6]), int(end_date[6:8]))
+            while begin_date_time <= end_date_time:
+                last_time_str = begin_date_time.strftime('%Y%m%d')
+                temp_data = base_data[(base_data['trade_date'] >= '20160101') & (base_data['trade_date'] <= last_time_str)]
+                cal_has_up(stock_list[i][0], stock_list[i][2], temp_data, result)
+                begin_date_time += datetime.timedelta(days=1)
+        else:
+            result = cal_has_up(stock_list[i][0], stock_list[i][2], base_data, result)
     return result
 
+
+def cal_has_up(stock_code, stock_name, base_data, result):
+    if not base_data.empty and len(base_data) > 0:
+        temp_base_data = base_data.sort_values(by=['trade_date'], ascending=False)
+        temp_base_data.index = range(len(temp_base_data))
+        temp_base_data = temp_base_data.loc[0:10]
+        pre_day_af_close = temp_base_data['af_close'].shift(1)
+        temp_base_data['af_pct_chg'] = (temp_base_data['af_close'] - pre_day_af_close) / pre_day_af_close
+
+        # 期间之内的下跌幅度不能超过4%
+        down_days = temp_base_data[temp_base_data['af_pct_chg'] < 0.04]
+        if down_days.empty:
+            return
+
+        # 最后一天相比于这期间的最低价，已经上涨了20%
+        min_price = temp_base_data['af_close'].min()
+        curr_price = temp_base_data.at[0, 'af_close']
+        up_pct = (curr_price - min_price) / min_price
+        if up_pct > 0.2:
+            result = result.append({'ts_code': stock_code, 'up_pct': up_pct, 'name': stock_name},
+                                    ignore_index=True)
+    return result
 
 
 
