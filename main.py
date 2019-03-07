@@ -2,6 +2,7 @@
 """
 程序入口
 """
+import sys
 import time
 import datetime
 import numpy as np
@@ -18,6 +19,29 @@ import json
 import DailyUtils.FindLowStock as FindLowStock
 
 data_center = Data.DataCenter.DataCenter()
+
+# main程序
+# 获取命令行参数
+# print(sys.argv[0])
+# print(sys.argv[1])
+# if sys.argv[1] == 'has_max_up_some':
+#     result = Calculator.get_max_up_stock(data_center, up_days=2)
+#     FileOutput.csv_output(None, result, sys.argv[2])
+#     print(result.to_json(orient='values'))
+# elif sys.argv[1] == 'stock_base_info':
+#     base_data = data_center.fetch_base_data_pure_database(sys.argv[2],
+#                                                           begin_date='20160101')
+#     Calculator.cal_ma(base_data, column_name='close', ma_array=[5, 10, 20, 30])
+#     ret_base_data = base_data.loc[:, ['trade_date', 'open', 'close', 'low', 'high', 'ma5', 'ma10', 'ma20', 'ma30']]
+#     print(ret_base_data.to_json(orient='values'))
+# elif sys.argv[1] == 'has_up':
+#     result = Calculator.find_has_up_some(data_center)
+#     print(result.to_json(orient='values'))
+
+
+def get_max_up_stock(up_days=2):
+    result = Calculator.get_max_up_stock(data_center, up_days=up_days)
+    FileOutput.csv_output(None, result, 'two_up_stock_20190304.csv')
 
 
 def batch_fetch_daily_info(data_center):
@@ -88,13 +112,13 @@ def fetch_base_info_daily(data_cen, trade_date):
     data_cen.fetch_all_daily_info_until_now(trade_date)
 
 
-# fetch_base_info_daily(data_center, "20190221")
+# fetch_base_info_daily(data_center, "20190306")
 # data_center.init_redis_cache()
 # fetch_base_info_daily(data_center, '20190215')
 # result = Calculator.get_his_max_up_pct(data_center)
 # FileOutput.csv_output(None, result, 'up_win_pct_stock.csv')
-result = Calculator.get_max_up_stock(data_center)
-FileOutput.csv_output(None, result, 'two_up_stock_20190223.csv')
+result = Calculator.get_max_up_stock(data_center, up_days=2)
+FileOutput.csv_output(None, result, 'one_up_stock_20190307.csv')
 # result = Verify.three_max_stock(data_center)
 # FileOutput.csv_output(None, result, 'three_max_up.csv')
 # result = Calculator.cal_wave_high(data_center)
@@ -102,7 +126,7 @@ FileOutput.csv_output(None, result, 'two_up_stock_20190223.csv')
 # data_center.init_adj_factor()
 
 # result = Calculator.find_has_up_some(data_center)
-# FileOutput.csv_output(None, result, 'has_up_10_pct_20190223.csv')
+# FileOutput.csv_output(None, result, 'has_up_10_pct_20190307.csv')
 
 # data_center.fetch_all_daily_info_until_now('20190119')
 # data_center.init_redis_cache()

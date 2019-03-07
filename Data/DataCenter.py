@@ -576,11 +576,12 @@ class DataCenter:
             base_info = self.get_data_frame_from_redis(stock_code=stock_list[i][0])
             temp_base_info = results[results['ts_code'] == stock_list[i][0]]
             temp_adj_factor = all_adj_factor[all_adj_factor['ts_code'] == stock_list[i][0]]
-            temp_base_info.index = range(len(temp_base_info))
-            temp_adj_factor.index = range(len(temp_adj_factor))
-            temp_af_close = temp_base_info['close'] * temp_adj_factor['adj_factor']
-            temp_base_info.loc[:, 'af_close'] = temp_af_close
-            temp_base_info.loc[:, 'adj_factor'] = temp_adj_factor['adj_factor']
-            base_info = base_info.append(temp_base_info)
-            base_info.index = range(len(base_info))
-            self.write_data_frame_to_redis(base_info)
+            if not temp_base_info.empty and not temp_adj_factor.empty:
+                temp_base_info.index = range(len(temp_base_info))
+                temp_adj_factor.index = range(len(temp_adj_factor))
+                temp_af_close = temp_base_info['close'] * temp_adj_factor['adj_factor']
+                temp_base_info.loc[:, 'af_close'] = temp_af_close
+                temp_base_info.loc[:, 'adj_factor'] = temp_adj_factor['adj_factor']
+                base_info = base_info.append(temp_base_info)
+                base_info.index = range(len(base_info))
+                self.write_data_frame_to_redis(base_info)
