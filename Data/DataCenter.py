@@ -10,6 +10,7 @@ import Data.Database
 import Data.DataPull
 import redis
 import json
+import Algorithm.Calculator as Calculator
 
 
 class DataCenter:
@@ -416,7 +417,7 @@ class DataCenter:
         现在默认是fetch从2016年1月1日开始的基本数据
         :return:
         """
-        all_stock_list = self.fetch_stock_list(where="ts_code not in (select ts_code from stock_base_info)")
+        all_stock_list = self.fetch_stock_list()
         end_date = datetime.datetime.now()
         end_date = end_date.strftime("%Y%m%d")
         for item in range(len(all_stock_list)):
@@ -429,7 +430,7 @@ class DataCenter:
         纯粹从数据库当中取出股票日交易信息和复权因子，并且计算后复权收盘价，写入到Redis缓存当中
         :return:
         """
-        all_stock_list = self.fetch_stock_list(where="ts_code > '000001.SH'")
+        all_stock_list = self.fetch_stock_list()
         for i in range(len(all_stock_list)):
             base_data = self.fetch_base_data_pure_database(stock_code=all_stock_list[i][0], begin_date='20160101')
             if len(base_data) > 0:
@@ -440,9 +441,10 @@ class DataCenter:
                                                                      len(base_data) - 1, 'trade_date'])
                 base_data['adj_factor'] = adj_factor['adj_factor']
                 base_data['af_close'] = base_data['close'] * adj_factor['adj_factor']
+                base_data = Calculator.cal_macd_per_stock(base_data)
                 self.write_data_frame_to_redis(base_data)
 
-    def fetch_stock_list(self, code=None, market='主板', where=''):
+    def fetch_stock_list(self, code=None, market=['主板', '中小板'], where=''):
         """
         获取包含所有股票的列表
         :param code:
@@ -584,4 +586,5 @@ class DataCenter:
                 temp_base_info.loc[:, 'adj_factor'] = temp_adj_factor['adj_factor']
                 base_info = base_info.append(temp_base_info)
                 base_info.index = range(len(base_info))
+                base_info = Calculator.cal_macd_per_stock(base_info)
                 self.write_data_frame_to_redis(base_info)

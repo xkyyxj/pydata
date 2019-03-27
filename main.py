@@ -112,21 +112,39 @@ def fetch_base_info_daily(data_cen, trade_date):
     data_cen.fetch_all_daily_info_until_now(trade_date)
 
 
-# fetch_base_info_daily(data_center, "20190307")
+# data_center.init_base_info()
 # data_center.init_redis_cache()
+# fetch_base_info_daily(data_center, "20190325")
+# data_center.init_redis_cache()find_max_start_max_down_with_buy
 # fetch_base_info_daily(data_center, '20190215')
 # result = Calculator.get_his_max_up_pct(data_center)
 # FileOutput.csv_output(None, result, 'up_win_pct_stock.csv')
 # result = Calculator.get_max_up_stock(data_center, up_days=2)
-# FileOutput.csv_output(None, result, 'one_up_stock_20190307.csv')
+# FileOutput.csv_output(None, result, 'two_up_stock_20190320.csv')
+Calculator.find_max_start_max_down_with_buy(data_center, start_days='20190315', end_days='20190331')
+# Verify.n_max_up_buy_verify(data_center)
 # result = Verify.three_max_stock(data_center)
 # FileOutput.csv_output(None, result, 'three_max_up.csv')
 # result = Calculator.cal_wave_high(data_center)
 # FileOutput.csv_output(None, result, 'wave_high_hand.csv')
 # data_center.init_adj_factor()
 
-result = Calculator.find_has_up_some(data_center)
-FileOutput.csv_output(None, result, "has_up_10_pct_ave_year_2018.csv")
+# 定投的验证
+# result = Verify.dt_verify(data_center, '000711.SZ')
+# FileOutput.csv_output(None, result, 'dt_verify_000711SZ.csv')
+
+# N天阴线之后买入的验证
+# Verify.n_green_days_two_red_buy_next_sold(data_center, '000711.SZ', down_days=3)
+# FileOutput.csv_output(None, result[0], 'green_3_buy_verify_000711SZ.csv', extra_content=result[1])
+
+# 突然暴涨的股票
+
+# result = Calculator.find_has_up_some(data_center)
+# FileOutput.csv_output(None, result, "has_up_10_pct_ave_year_2018.csv")
+
+# 统计项
+# result = Calculator.no_max_continue_down_count(data_center)
+# FileOutput.csv_output(None, result, "down_up_das_count.csv")
 
 # result = Calculator.find_has_up_some(data_center)
 # FileOutput.csv_output(None, result, 'has_up_10_pct_20190307.csv')
@@ -313,3 +331,7 @@ FileOutput.csv_output(None, result, "has_up_10_pct_ave_year_2018.csv")
 # plt.plot(x, y)
 # plt.show()
 
+# se1 = pandas.Series([45, 47, 44, 46])
+# print(se1.std())
+# se2 = pandas.Series([109, 108, 110, 107])
+# print(se2.std())

@@ -9,6 +9,7 @@ import pandas
 import matplotlib.pyplot as plt
 import DailyUtils.FindLowStock as FindLowStock
 import Output.FileOutput as FileOutput
+from Algorithm import Calculator
 
 
 def verify(base_data):
@@ -140,6 +141,12 @@ def filter_next_up(base_data, filter_rst):
 
 
 def high_after_low(data_center):
+    """
+    此段注释是后加的
+    此方法用于判定历史低点之后 ，七天之内的收益如何（我感觉应该是不怎么样的，随机）
+    :param data_center:
+    :return:
+    """
     result = pandas.DataFrame(columns=['trade_date', 'ts_code', '220_15_win'])
     real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
     stock_list = data_center.fetch_stock_list()
@@ -426,4 +433,699 @@ def low_af_high_buy(data_center):
             pro_data = base_data['af_close'].rolling(window=30)
 
 
+def dt_verify(data_center, stock_code=None):
+    """
+    定投的效果如何？
+    :param stock_code:
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'operate_day', 'ope_price', 'ope_type', 'ope_num', 'curr_stock_num',
+                                       'paper_stock_value', 'real_stock_value', 'free_value', 'every_stock_val',
+                                       'continue_days'))
+    if stock_code is not None:
+        base_data = data_center.fetch_base_data_pure_database(stock_code,
+                                                              begin_date='20160101')
+        Calculator.cal_ma(base_data)
 
+    # 初始化结果数组
+    process_dt_every_ope(result, base_data, 0, stock_code, None)
+    ma_bigger_zero = False
+    ma_lower_zero = False
+    if not base_data.empty and len(base_data) > 0:
+        for i in range(len(base_data)):
+            if base_data.at[i, 'ma8slope'] > 0 and not ma_bigger_zero:
+                result = process_dt_every_ope(result, base_data, i, stock_code, 'buy')
+                ma_bigger_zero = True
+                ma_lower_zero = False
+            elif base_data.at[i, 'ma8slope'] < 0 and not ma_lower_zero:
+                result = process_dt_every_ope(result, base_data, i, stock_code, 'sold')
+                ma_lower_zero = True
+                ma_bigger_zero = False
+    return result
+
+
+def process_dt_every_ope(result, base_data, i, stock_code, ope_type, every_buy_value=1000):
+    """
+    处理定投当中的每个操作过程的结果
+    这个方法当中规定了卖出规则：如果是价格高于当前价格的10%，那么就全仓卖出，如果高于当前价格的5%，那么半仓卖出
+    :return:
+    """
+    start_val = 10000
+    temp_dic = {}
+    temp_dic['ts_code'] = stock_code
+    if len(result) > 0:
+        temp_dic['operate_day'] = base_data.at[i, 'trade_date']
+        temp_dic['ope_price'] = base_data.at[i, 'close']
+        temp_dic['ope_type'] = ope_type
+
+        # 确定一下买入卖出的数量
+        if ope_type == 'buy':
+            last_free_value = result.at[len(result) - 1, 'free_value']
+            buy_need_money = every_buy_value if every_buy_value < last_free_value else last_free_value
+            # 确保操作的股数为100股的整数倍
+            ope_num = int(buy_need_money // temp_dic['ope_price'] / 100)
+
+            # 如果买入数量为100股大于buy_need_value，但是仍然有钱可以买入的话，那么买入
+            if ope_num == 0:
+                buy_min_money = 100 * temp_dic['ope_price']
+                if buy_min_money < last_free_value:
+                    ope_num = 1 # 买一手
+            ope_num = ope_num * 100
+        # 否则为卖出，则卖出的时候持有数量必须大于0
+        elif result.at[len(result) - 1, 'curr_stock_num'] > 0:
+            pre_stock_ave_price = result.at[len(result) - 1, 'every_stock_val']
+            curr_stock_price = base_data.at[i, 'close']
+            pct = (curr_stock_price - pre_stock_ave_price) / pre_stock_ave_price
+            if pct > 0.1:
+                ope_num = result.at[len(result) - 1, 'curr_stock_num']
+            elif pct > 0.05:
+                # 确保操作的股数为100股的整数倍
+                ope_num = int(result.at[len(result) - 1, 'curr_stock_num'] / 100 / 2)
+                ope_num = ope_num * 100
+            else:
+                ope_num = 0
+        else:
+            return result
+
+        if ope_num == 0:
+            return result
+        temp_dic['ope_num'] = ope_num
+        pre_stock_num = result.at[len(result) - 1, 'curr_stock_num'] if len(result) > 0 else 0
+        temp_dic['curr_stock_num'] = pre_stock_num + temp_dic['ope_num'] if ope_type == 'buy' \
+            else pre_stock_num - temp_dic['ope_num']
+        temp_dic['paper_stock_value'] = temp_dic['ope_price'] * temp_dic['curr_stock_num']
+        pre_free_value = result.at[len(result) - 1, 'free_value']
+        temp_dic['free_value'] = (pre_free_value - temp_dic['ope_num'] * temp_dic['ope_price']) if ope_type == 'buy' \
+            else (pre_free_value + temp_dic['ope_num'] * temp_dic['ope_price'])
+        if ope_type == 'buy':
+            this_turn_real_value = temp_dic['ope_price'] * temp_dic['ope_num']
+        else:
+            pre_turn_real_stock_val = result.at[len(result) - 1, 'every_stock_val']
+            this_turn_real_value = -pre_turn_real_stock_val * temp_dic['ope_num']
+        pre_real_stock_val = result.at[len(result) - 1, 'real_stock_value']
+        temp_dic['real_stock_value'] = round(pre_real_stock_val + this_turn_real_value, 2)
+        temp_dic['all_value'] = temp_dic['free_value'] + temp_dic['paper_stock_value']
+        temp_dic['every_stock_val'] = temp_dic['real_stock_value'] / temp_dic['curr_stock_num'] \
+            if temp_dic['curr_stock_num'] > 0 else 0
+        if len(result) > 1:
+            start_buy_date = result.at[1, 'operate_day']
+            curr_date_str = temp_dic['operate_day']
+            curr_date = datetime.date(int(curr_date_str[0:4]), int(curr_date_str[4:6]), int(curr_date_str[6:8]))
+            start_date = datetime.date(int(start_buy_date[0:4]), int(start_buy_date[4:6]), int(start_buy_date[6:8]))
+            date_diff = curr_date - start_date
+            temp_dic['continue_days'] = date_diff.days
+        else:
+            temp_dic['continue_days'] = 0
+        result = result.append(temp_dic, ignore_index=True)
+    else:
+        temp_dic['operate_day'] = '00000000'
+        temp_dic['ope_price'] = 0
+        temp_dic['ope_type'] = 'empty'
+        temp_dic['ope_num'] = 0
+        temp_dic['curr_stock_num'] = 0
+        temp_dic['paper_stock_value'] = 0
+        temp_dic['real_stock_value'] = 0
+        temp_dic['free_value'] = start_val
+        temp_dic['all_value'] = start_val
+        temp_dic['continue_days'] = 0
+        result = result.append(temp_dic, ignore_index=True)
+    return result
+
+
+def n_down_days_buy_next_sold(data_center, stock_code, down_days=3):
+    """
+    连续:param down_days天下跌之后当天收盘价买入，
+    1. 如果第二天涨幅达到3%，那么就以这个价格卖出
+    2. 如果第二天的涨幅没有达到3%，那么就以收盘价卖出
+    3. 不能连续下跌的时候买入，如果某一天卖出的时候是阴线，后面继续是阴线的时候就要小心了
+    这个跌幅是按照stock_base_info表格当中的pct_chg字段来判定的。
+    :param down_days:
+    :param data_center:
+    :param stock_code:
+    :return:
+    """
+    stock_list = data_center.fetch_stock_list()
+    for j in range(len(stock_list)):
+        result = pandas.DataFrame(columns=('ts_code', 'operate_day', 'ope_price', 'ope_type', 'ope_num', 'all_money',
+                                           'has_stock_num', 'continue_days', 'interest_state', 'is_percent_3'))
+        free_val = 10000
+        has_stock = False  # 是否持仓， 模拟满仓的效果，必须第二天卖出之后才能在第三天买入
+        base_data = data_center.fetch_base_data_pure_database(stock_list[j][0],
+                                                              begin_date='20160101')
+        stock_code = stock_list[j][0]
+        if not base_data.empty:
+            continue_down_days = 0
+            for i in range(len(base_data)):
+                if base_data.at[i, 'pct_chg'] < 0:
+                    continue_down_days += 1
+                else:
+                    continue_down_days = 0
+                # 买入操作
+                if continue_down_days == down_days and not has_stock:
+                    temp_dic = {
+                        'ts_code': stock_code,
+                        'ope_price': base_data.at[i, 'close'],
+                        'operate_day': base_data.at[i, 'trade_date'],
+                        'ope_type': 'buy'
+                    }
+                    ope_num = int(free_val // temp_dic['ope_price'] / 100)
+                    ope_num = ope_num * 100
+                    temp_dic['ope_num'] = ope_num
+                    temp_dic['has_stock_num'] = ope_num
+                    temp_dic['all_money'] = free_val
+                    free_val -= ope_num * temp_dic['ope_price']
+                    has_stock = True
+                    result = result.append(temp_dic, ignore_index=True)
+                # 是否刚刚买入的？
+                if not result.empty:
+                    is_curr_buy = True if result.at[len(result) - 1, 'operate_day'] == base_data.at[i, 'trade_date'] \
+                        else False
+                else:
+                    is_curr_buy = True
+                if has_stock and not is_curr_buy:
+                    buy_price = result.at[len(result) - 1, 'ope_price']
+                    ope_num = result.at[len(result) - 1, 'ope_num']
+                    curr_price = base_data.at[i, 'high']
+                    temp_dic = {
+                        'ts_code': stock_code,
+                        'operate_day': base_data.at[i, 'trade_date'],
+                        'ope_type': 'sold'
+                    }
+                    # 涨幅达到了3%
+                    if (curr_price / buy_price) > 1.03:
+                        sold_price = buy_price * 1.03
+                        sold_money = ope_num * sold_price
+                        temp_dic['is_percent_3'] = "Yes"
+                    # 涨幅没有达到3%， 以收盘价卖出
+                    else:
+                        sold_price = base_data.at[i, 'close']
+                        sold_money = sold_price * ope_num
+                        temp_dic['is_percent_3'] = ''
+                    free_val += sold_money
+                    # 统计一下数据
+                    temp_dic['ope_price'] = sold_price
+                    temp_dic['has_stock_num'] = 0
+                    temp_dic['all_money'] = free_val
+                    temp_dic['interest_state'] = '' if free_val > result.at[len(result) - 1, 'all_money'] else 'lost'
+                    result = result.append(temp_dic, ignore_index=True)
+                    has_stock = False
+        if not result.empty:
+            temp_sold_rst = result[result['ope_type'] == 'sold']
+            win_count = len(temp_sold_rst[temp_sold_rst['interest_state'] != 'lost'])
+            target_acc_num = len(result[result['is_percent_3'] == 'Yes'])
+            sold_num = len(result[result['ope_type'] == 'sold'])
+            win_percent = win_count / sold_num
+            target_acc_pct = target_acc_num / sold_num
+        else:
+            win_percent = 0
+            target_acc_pct = 0
+        extra_content = 'win_percent is ' + str(win_percent)
+        extra_content = extra_content + '\n' + 'target_acc_pct is ' + str(target_acc_pct)
+        if not result.empty:
+            FileOutput.csv_output(None, result, 'down_3_buy_verify_' + stock_list[j][0] + '.csv',
+                                  extra_content=extra_content, spe_dir_name='down_3_buy')
+    # if stock_code is not None:
+    #     base_data = data_center.fetch_base_data_pure_database(stock_code,
+    #                                                           begin_date='20160101')
+    #     if not base_data.empty:
+    #         continue_down_days = 0
+    #         for i in range(len(base_data)):
+    #             if base_data.at[i, 'pct_chg'] < 0:
+    #                 continue_down_days += 1
+    #             else:
+    #                 continue_down_days = 0
+    #             # 买入操作
+    #             if continue_down_days == down_days and not has_stock:
+    #                 temp_dic = {
+    #                     'ts_code': stock_code,
+    #                     'ope_price': base_data.at[i, 'close'],
+    #                     'operate_day': base_data.at[i, 'trade_date'],
+    #                     'ope_type': 'buy'
+    #                 }
+    #                 ope_num = int(free_val // temp_dic['ope_price'] / 100)
+    #                 ope_num = ope_num * 100
+    #                 temp_dic['ope_num'] = ope_num
+    #                 temp_dic['has_stock_num'] = ope_num
+    #                 temp_dic['all_money'] = free_val
+    #                 free_val -= ope_num * temp_dic['ope_price']
+    #                 has_stock = True
+    #                 result = result.append(temp_dic, ignore_index=True)
+    #             # 是否刚刚买入的？
+    #             if not result.empty:
+    #                 is_curr_buy = True if result.at[len(result) - 1, 'operate_day'] == base_data.at[i, 'trade_date'] \
+    #                     else False
+    #             else:
+    #                 is_curr_buy = True
+    #             if has_stock and not is_curr_buy:
+    #                 buy_price = result.at[len(result) - 1, 'ope_price']
+    #                 ope_num = result.at[len(result) - 1, 'ope_num']
+    #                 curr_price = base_data.at[i, 'high']
+    #                 temp_dic = {
+    #                     'ts_code': stock_code,
+    #                     'operate_day': base_data.at[i, 'trade_date'],
+    #                     'ope_type': 'sold'
+    #                 }
+    #                 # 涨幅达到了3%
+    #                 if (curr_price / buy_price) > 1.03:
+    #                     sold_price = buy_price * 1.03
+    #                     sold_money = ope_num * sold_price
+    #                 # 涨幅没有达到3%， 以收盘价卖出
+    #                 else:
+    #                     sold_price = base_data.at[i, 'close']
+    #                     sold_money = sold_price * ope_num
+    #                 free_val += sold_money
+    #                 # 统计一下数据
+    #                 temp_dic['ope_price'] = sold_price
+    #                 temp_dic['has_stock_num'] = 0
+    #                 temp_dic['all_money'] = free_val
+    #                 temp_dic['interest_state'] = '' if free_val > result.at[len(result) - 1, 'all_money'] else 'lost'
+    #                 result = result.append(temp_dic, ignore_index=True)
+    #                 has_stock = False
+    # 统计一下获利百分比
+
+    # return result, 'win_percent is ' + str(win_percent)
+
+
+def n_green_days_buy_next_sold(data_center, stock_code, down_days=4):
+    """
+    连续:param down_days天下跌之后(此处不是指当天收盘价比前一天低，而是指当天收盘价比当天开盘价低)当天收盘价买入，
+    1. 如果第二天涨幅达到3%，那么就以这个价格卖出
+    2. 如果第二天的涨幅没有达到3%，那么就以收盘价卖出
+    3. 不能连续下跌的时候买入，如果某一天卖出的时候是阴线，后面继续是阴线的时候就要小心了
+    这个跌幅是按照stock_base_info表格当中的pct_chg字段来判定的。
+    :param down_days:
+    :param data_center:
+    :param stock_code:
+    :return:
+    """
+    stock_list = data_center.fetch_stock_list()
+    for j in range(len(stock_list)):
+        result = pandas.DataFrame(columns=('ts_code', 'operate_day', 'ope_price', 'ope_type', 'ope_num', 'all_money',
+                                           'has_stock_num', 'continue_days', 'interest_state', 'is_percent_3'))
+        free_val = 10000
+        has_stock = False  # 是否持仓， 模拟满仓的效果，必须第二天卖出之后才能在第三天买入
+        stock_code = stock_list[j][0]
+        base_data = data_center.fetch_base_data_pure_database(stock_code,
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            continue_down_days = 0
+            for i in range(len(base_data)):
+                if base_data.at[i, 'close'] < base_data.at[i, 'open']:
+                    continue_down_days += 1
+                else:
+                    continue_down_days = 0
+                # 买入操作
+                if continue_down_days == down_days and not has_stock:
+                    temp_dic = {
+                        'ts_code': stock_code,
+                        'ope_price': base_data.at[i, 'close'],
+                        'operate_day': base_data.at[i, 'trade_date'],
+                        'ope_type': 'buy'
+                    }
+                    ope_num = int(free_val // temp_dic['ope_price'] / 100)
+                    ope_num = ope_num * 100
+                    temp_dic['ope_num'] = ope_num
+                    temp_dic['has_stock_num'] = ope_num
+                    temp_dic['all_money'] = free_val
+                    free_val -= ope_num * temp_dic['ope_price']
+                    has_stock = True
+                    result = result.append(temp_dic, ignore_index=True)
+                # 是否刚刚买入的？
+                if not result.empty:
+                    is_curr_buy = True if result.at[len(result) - 1, 'operate_day'] == base_data.at[i, 'trade_date'] \
+                        else False
+                else:
+                    is_curr_buy = True
+                if has_stock and not is_curr_buy:
+                    buy_price = result.at[len(result) - 1, 'ope_price']
+                    ope_num = result.at[len(result) - 1, 'ope_num']
+                    curr_price = base_data.at[i, 'high']
+                    temp_dic = {
+                        'ts_code': stock_code,
+                        'operate_day': base_data.at[i, 'trade_date'],
+                        'ope_type': 'sold'
+                    }
+                    # 涨幅达到了3%
+                    if (curr_price / buy_price) > 1.03:
+                        sold_price = buy_price * 1.03
+                        sold_money = ope_num * sold_price
+                        is_target_percent = True
+                    # 涨幅没有达到3%， 以收盘价卖出
+                    else:
+                        sold_price = base_data.at[i, 'close']
+                        sold_money = sold_price * ope_num
+                        is_target_percent = False
+                    free_val += sold_money
+                    # 统计一下数据
+                    temp_dic['ope_price'] = sold_price
+                    temp_dic['has_stock_num'] = 0
+                    temp_dic['all_money'] = free_val
+                    temp_dic['is_percent_3'] = 'Yes' if is_target_percent else ''
+                    temp_dic['interest_state'] = '' if free_val > result.at[len(result) - 1, 'all_money'] else 'lost'
+                    result = result.append(temp_dic, ignore_index=True)
+                    has_stock = False
+        # 统计一下获利百分比
+        if not result.empty:
+            temp_sold_rst = result[result['ope_type'] == 'sold']
+            win_count = len(temp_sold_rst[temp_sold_rst['interest_state'] != 'lost'])
+            target_acc_num = len(result[result['is_percent_3'] == 'Yes'])
+            sold_num = len(result[result['ope_type'] == 'sold'])
+            win_percent = win_count / sold_num
+            target_acc_pct = target_acc_num / sold_num
+        else:
+            win_percent = 0
+            target_acc_pct = 0
+        extra_content = 'win_percent is ' + str(win_percent)
+        extra_content = extra_content + '\n' + 'target_acc_pct is ' + str(target_acc_pct)
+        if not result.empty:
+            FileOutput.csv_output(None, result, 'green_4_buy_verify_' + stock_list[j][0] + '.csv',
+                                  extra_content=extra_content, spe_dir_name='green_4_buy')
+    # if stock_code is not None:
+    #     result = pandas.DataFrame(columns=('ts_code', 'operate_day', 'ope_price', 'ope_type', 'ope_num', 'all_money',
+    #                                        'has_stock_num', 'continue_days', 'interest_state'))
+    #     free_val = 10000
+    #     has_stock = False  # 是否持仓， 模拟满仓的效果，必须第二天卖出之后才能在第三天买入
+    #     base_data = data_center.fetch_base_data_pure_database(stock_code,
+    #                                                           begin_date='20160101')
+    #     if not base_data.empty:
+    #         continue_down_days = 0
+    #         for i in range(len(base_data)):
+    #             if base_data.at[i, 'close'] < base_data.at[i, 'open']:
+    #                 continue_down_days += 1
+    #             else:
+    #                 continue_down_days = 0
+    #             # 买入操作
+    #             if continue_down_days == down_days and not has_stock:
+    #                 temp_dic = {
+    #                     'ts_code': stock_code,
+    #                     'ope_price': base_data.at[i, 'close'],
+    #                     'operate_day': base_data.at[i, 'trade_date'],
+    #                     'ope_type': 'buy'
+    #                 }
+    #                 ope_num = int(free_val // temp_dic['ope_price'] / 100)
+    #                 ope_num = ope_num * 100
+    #                 temp_dic['ope_num'] = ope_num
+    #                 temp_dic['has_stock_num'] = ope_num
+    #                 temp_dic['all_money'] = free_val
+    #                 free_val -= ope_num * temp_dic['ope_price']
+    #                 has_stock = True
+    #                 result = result.append(temp_dic, ignore_index=True)
+    #             # 是否刚刚买入的？
+    #             if not result.empty:
+    #                 is_curr_buy = True if result.at[len(result) - 1, 'operate_day'] == base_data.at[i, 'trade_date'] \
+    #                     else False
+    #             else:
+    #                 is_curr_buy = True
+    #             if has_stock and not is_curr_buy:
+    #                 buy_price = result.at[len(result) - 1, 'ope_price']
+    #                 ope_num = result.at[len(result) - 1, 'ope_num']
+    #                 curr_price = base_data.at[i, 'high']
+    #                 temp_dic = {
+    #                     'ts_code': stock_code,
+    #                     'operate_day': base_data.at[i, 'trade_date'],
+    #                     'ope_type': 'sold'
+    #                 }
+    #                 # 涨幅达到了3%
+    #                 if (curr_price / buy_price) > 1.03:
+    #                     sold_price = buy_price * 1.03
+    #                     sold_money = ope_num * sold_price
+    #                 # 涨幅没有达到3%， 以收盘价卖出
+    #                 else:
+    #                     sold_price = base_data.at[i, 'close']
+    #                     sold_money = sold_price * ope_num
+    #                 free_val += sold_money
+    #                 # 统计一下数据
+    #                 temp_dic['ope_price'] = sold_price
+    #                 temp_dic['has_stock_num'] = 0
+    #                 temp_dic['all_money'] = free_val
+    #                 temp_dic['interest_state'] = '' if free_val > result.at[len(result) - 1, 'all_money'] else 'lost'
+    #                 result = result.append(temp_dic, ignore_index=True)
+    #                 has_stock = False
+    # # 统计一下获利百分比
+    # if not result.empty:
+    #     win_count = len(result[result['interest_state'] != 'lost'])
+    #     win_percent = win_count / len(result)
+    # else:
+    #     win_percent = 0
+    # return result, 'win_percent is ' + str(win_percent)
+
+
+def n_green_days_two_red_buy_next_sold(data_center, stock_code, down_days=4):
+    """
+    连续:param down_days天下跌之后(此处不是指当天收盘价比前一天低，而是指当天收盘价比当天开盘价低),然后连续两天红线，
+    以第二天红线的收盘价买入
+    1. 如果第二天涨幅达到3%，那么就以这个价格卖出
+    2. 如果第二天的涨幅没有达到3%，那么就以收盘价卖出
+    3. 不能连续下跌的时候买入，如果某一天卖出的时候是阴线，后面继续是阴线的时候就要小心了
+    这个跌幅是按照stock_base_info表格当中的pct_chg字段来判定的。
+    :param down_days:
+    :param data_center:
+    :param stock_code:
+    :return:
+    """
+    stock_list = data_center.fetch_stock_list()
+    for j in range(len(stock_list)):
+        result = pandas.DataFrame(columns=('ts_code', 'operate_day', 'ope_price', 'ope_type', 'ope_num', 'all_money',
+                                           'has_stock_num', 'continue_days', 'interest_state', 'is_percent_3'))
+        free_val = 10000
+        has_stock = False  # 是否持仓， 模拟满仓的效果，必须第二天卖出之后才能在第三天买入
+        stock_code = stock_list[j][0]
+        base_data = data_center.fetch_base_data_pure_database(stock_code,
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            continue_down_days = 0
+            red_days = 0
+            for i in range(len(base_data)):
+                if base_data.at[i, 'close'] < base_data.at[i, 'open']:
+                    if red_days > 0:
+                        continue_down_days = 1
+                        red_days = 0
+                    else:
+                        continue_down_days += 1
+                        red_days = 0
+                else:
+                    if red_days < 2 and continue_down_days >= down_days:
+                        red_days += 1
+                    elif continue_down_days >= down_days and red_days > 2:
+                        continue_down_days = 0
+                        red_days = 0
+                    else:
+                        red_days = 0
+                        continue_down_days = 0
+                # 买入操作
+                if continue_down_days >= down_days and red_days == 2 and not has_stock:
+                    temp_dic = {
+                        'ts_code': stock_code,
+                        'ope_price': base_data.at[i, 'close'],
+                        'operate_day': base_data.at[i, 'trade_date'],
+                        'ope_type': 'buy'
+                    }
+                    ope_num = int(free_val // temp_dic['ope_price'] / 100)
+                    ope_num = ope_num * 100
+                    temp_dic['ope_num'] = ope_num
+                    temp_dic['has_stock_num'] = ope_num
+                    temp_dic['all_money'] = free_val
+                    free_val -= ope_num * temp_dic['ope_price']
+                    has_stock = True
+                    result = result.append(temp_dic, ignore_index=True)
+                # 是否刚刚买入的？
+                if not result.empty:
+                    is_curr_buy = True if result.at[len(result) - 1, 'operate_day'] == base_data.at[i, 'trade_date'] \
+                        else False
+                else:
+                    is_curr_buy = True
+                if has_stock and not is_curr_buy:
+                    # 加项：如果是继续上涨当中的话 ，那么就可以不必卖出，等待利润增长
+                    if base_data.at[i, 'close'] < base_data.at[i, 'open']:
+                        buy_price = result.at[len(result) - 1, 'ope_price']
+                        ope_num = result.at[len(result) - 1, 'ope_num']
+                        curr_price = base_data.at[i, 'high']
+                        temp_dic = {
+                            'ts_code': stock_code,
+                            'operate_day': base_data.at[i, 'trade_date'],
+                            'ope_type': 'sold'
+                        }
+                        # 涨幅达到了3%
+                        if (curr_price / buy_price) > 1.03:
+                            sold_price = buy_price * 1.03
+                            sold_money = ope_num * sold_price
+                            is_target_percent = True
+                        # 涨幅没有达到3%， 以收盘价卖出
+                        else:
+                            sold_price = base_data.at[i, 'close']
+                            sold_money = sold_price * ope_num
+                            is_target_percent = False
+                        free_val += sold_money
+                        # 统计一下数据
+                        temp_dic['ope_price'] = sold_price
+                        temp_dic['has_stock_num'] = 0
+                        temp_dic['all_money'] = free_val
+                        temp_dic['is_percent_3'] = 'Yes' if is_target_percent else ''
+                        temp_dic['interest_state'] = '' if free_val > result.at[
+                            len(result) - 1, 'all_money'] else 'lost'
+                        result = result.append(temp_dic, ignore_index=True)
+                        has_stock = False
+        # 统计一下获利百分比
+        if not result.empty:
+            temp_sold_rst = result[result['ope_type'] == 'sold']
+            win_count = len(temp_sold_rst[temp_sold_rst['interest_state'] != 'lost'])
+            target_acc_num = len(result[result['is_percent_3'] == 'Yes'])
+            sold_num = len(result[result['ope_type'] == 'sold'])
+            win_percent = win_count / sold_num
+            target_acc_pct = target_acc_num / sold_num
+        else:
+            win_percent = 0
+            target_acc_pct = 0
+        extra_content = 'win_percent is ' + str(win_percent)
+        extra_content = extra_content + '\n' + 'target_acc_pct is ' + str(target_acc_pct)
+        if not result.empty:
+            FileOutput.csv_output(None, result, 'green_3_red_2_buy_verify_' + stock_list[j][0] + '.csv',
+                                  extra_content=extra_content, spe_dir_name='green_3_red_2_buy_01')
+
+
+def n_max_up_buy_verify(data_center):
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'trade_date', 'up_pct', 'is_win', 'is_buy_max',
+                                       'is_sold_max', 'is_7_percent', 'is_10_percent'))
+    stock_list = data_center.fetch_stock_list()
+
+    # 统计一下第一天成功封涨停而第二天封涨停失败的概率（此处封涨停是指上涨超过9%）
+    ok_num = 0  # 成功封涨停的天数
+    fail_num = 0  # 第二天开盘成功封涨停但是尾盘封涨停失败的天数
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            base_data.loc[:, 'next_pct_chg'] = base_data['pct_chg'].shift(-1)
+            base_data.loc[:, 'pre_pct_chg'] = base_data['pct_chg'].shift(1)
+            base_data.loc[:, 'next_open'] = base_data['open'].shift(-1)
+            base_data.loc[:, 'next_high'] = base_data['high'].shift(-1)
+            base_data.loc[:, 'next_close'] = base_data['close'].shift(-1)
+            base_data.loc[:, 'open_pct'] = (base_data['next_open'] - base_data['close']) / base_data['close']
+            base_data.loc[:, 'high_pct'] = (base_data['next_high'] - base_data['high']) / base_data['high']
+            ok_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] > 9) & (base_data['pre_pct_chg'] < 9)
+            fail_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] < 9) & (base_data['high_pct'] > 0.09)\
+                         & (base_data['pre_pct_chg'] < 9)
+            ok_num += len(ok_index[ok_index])
+            fail_num += len(fail_index[fail_index])
+            buy_index = ok_index.shift(1)
+            buy_index[0] = False
+            # buy_index[1] = False
+            sold_index = ok_index.shift(2)
+            sold_index[0] = False
+            sold_index[1] = False
+            # sold_index[2] = False
+            temp = pandas.DataFrame(columns=('ts_code', 'name', 'trade_date', 'up_pct', 'get_target', 'is_win',
+                                             'is_buy_max', 'is_sold_max', 'is_7_percent', 'is_10_percent'))
+            buy_data = base_data[buy_index]
+            buy_data.index = range(len(buy_data))
+            is_buy_max = buy_data['open'] == buy_data['high']
+            sold_data = base_data[sold_index]
+            sold_data.index = range(len(sold_data))
+            is_sold_max = sold_data['open'] == sold_data['high']
+            up_pct = (sold_data['open'] - buy_data['open']) / buy_data['open']
+            temp.loc[:, 'trade_date'] = sold_data['trade_date']
+            temp.loc[:, 'up_pct'] = up_pct
+            temp.loc[:, 'is_buy_max'] = is_buy_max
+            temp.loc[:, 'is_sold_max'] = is_sold_max
+            temp.loc[:, 'is_win'] = temp['up_pct'] > 0
+            temp.loc[:, 'get_target'] = temp['up_pct'] > 0.03
+            temp.loc[:, 'ts_code'] = stock_list[i][0]
+            temp.loc[:, 'name'] = stock_list[i][2]
+            temp.loc[:, 'is_7_percent'] = up_pct >= 0.07
+            temp.loc[:, 'is_10_percent'] = up_pct >= 0.1
+            result = result.append(temp)
+    if not result.empty:
+        # 统计信息
+        win_count = len(result[result['is_win']])
+        win_percent = win_count / len(result)
+        target_achieve_count = len(result[result['get_target']])
+        target_achieve_percent = target_achieve_count / len(result)
+        extra_content = "win percent is " + str(win_percent) + "\n"
+        extra_content += "target ace percent is " + str(target_achieve_percent) + "\n"
+
+        seven_percent_count = len(result[result['is_7_percent']]) / len(result)
+        extra_content += '7 percent achieve is ' + str(seven_percent_count) + "\n"
+        ten_percent_count = len(result[result['is_10_percent']]) / len(result)
+        extra_content += '10 percent achieve is ' + str(ten_percent_count) + "\n"
+
+        # 统计一下成功封涨停的概率（第二天开盘）
+        success_up_percent = ok_num / (ok_num + fail_num)
+        extra_content += "success max up is " + str(success_up_percent)
+        FileOutput.csv_output(None, result, 'max_buy_verify_04.csv', extra_content=extra_content)
+
+
+def recent_two_max_up_rate(data_center):
+    """
+    最近30天之内连续涨停的概率以及连续涨停后下一天盈利的概率
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'trade_date', 'up_pct', 'is_win', 'is_buy_max',
+                                       'is_sold_max', 'is_7_percent', 'is_10_percent'))
+    stock_list = data_center.fetch_stock_list()
+
+    # 统计一下第一天成功封涨停而第二天封涨停失败的概率（此处封涨停是指上涨超过9%）
+    ok_num = 0  # 成功封涨停的天数
+    fail_num = 0  # 第二天开盘成功封涨停但是尾盘封涨停失败的天数
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            base_data.loc[:, 'next_pct_chg'] = base_data['pct_chg'].shift(-1)
+            base_data.loc[:, 'pre_pct_chg'] = base_data['pct_chg'].shift(1)
+            base_data.loc[:, 'next_open'] = base_data['open'].shift(-1)
+            base_data.loc[:, 'next_high'] = base_data['high'].shift(-1)
+            base_data.loc[:, 'next_close'] = base_data['close'].shift(-1)
+            base_data.loc[:, 'open_pct'] = (base_data['next_open'] - base_data['close']) / base_data['close']
+            base_data.loc[:, 'high_pct'] = (base_data['next_high'] - base_data['high']) / base_data['high']
+            ok_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] > 9) & (base_data['pre_pct_chg'] < 9)
+            fail_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] < 9) & (base_data['high_pct'] > 0.09) \
+                         & (base_data['pre_pct_chg'] < 9)
+            ok_num += len(ok_index[ok_index])
+            fail_num += len(fail_index[fail_index])
+            buy_index = ok_index.shift(1)
+            buy_index[0] = False
+            # buy_index[1] = False
+            sold_index = ok_index.shift(2)
+            sold_index[0] = False
+            sold_index[1] = False
+            # sold_index[2] = False
+            temp = pandas.DataFrame(columns=('ts_code', 'name', 'trade_date', 'up_pct', 'get_target', 'is_win',
+                                             'is_buy_max', 'is_sold_max', 'is_7_percent', 'is_10_percent'))
+            buy_data = base_data[buy_index]
+            buy_data.index = range(len(buy_data))
+            is_buy_max = buy_data['open'] == buy_data['high']
+            sold_data = base_data[sold_index]
+            sold_data.index = range(len(sold_data))
+            is_sold_max = sold_data['open'] == sold_data['high']
+            up_pct = (sold_data['open'] - buy_data['open']) / buy_data['open']
+            temp.loc[:, 'trade_date'] = sold_data['trade_date']
+            temp.loc[:, 'up_pct'] = up_pct
+            temp.loc[:, 'is_buy_max'] = is_buy_max
+            temp.loc[:, 'is_sold_max'] = is_sold_max
+            temp.loc[:, 'is_win'] = temp['up_pct'] > 0
+            temp.loc[:, 'get_target'] = temp['up_pct'] > 0.03
+            temp.loc[:, 'ts_code'] = stock_list[i][0]
+            temp.loc[:, 'name'] = stock_list[i][2]
+            temp.loc[:, 'is_7_percent'] = up_pct >= 0.07
+            temp.loc[:, 'is_10_percent'] = up_pct >= 0.1
+            result = result.append(temp)
+    if not result.empty:
+        # 统计信息
+        win_count = len(result[result['is_win']])
+        win_percent = win_count / len(result)
+        target_achieve_count = len(result[result['get_target']])
+        target_achieve_percent = target_achieve_count / len(result)
+        extra_content = "win percent is " + str(win_percent) + "\n"
+        extra_content += "target ace percent is " + str(target_achieve_percent) + "\n"
+
+        seven_percent_count = len(result[result['is_7_percent']]) / len(result)
+        extra_content += '7 percent achieve is ' + str(seven_percent_count) + "\n"
+        ten_percent_count = len(result[result['is_10_percent']]) / len(result)
+        extra_content += '10 percent achieve is ' + str(ten_percent_count) + "\n"
+
+        # 统计一下成功封涨停的概率（第二天开盘）
+        success_up_percent = ok_num / (ok_num + fail_num)
+        extra_content += "success max up is " + str(success_up_percent)
+        FileOutput.csv_output(None, result, 'max_buy_verify_04.csv', extra_content=extra_content)

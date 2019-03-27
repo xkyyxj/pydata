@@ -61,7 +61,7 @@ class MySQLDB:
         result = np.array(self.__cursor.fetchall())
         return result
 
-    def fetch_stock_list(self, code, market='主板', where=''):
+    def fetch_stock_list(self, code, market=['主板', '中小板'], where=''):
         has_where = False
         query_sql = "select * from stock_list"
         condition = []
@@ -70,9 +70,13 @@ class MySQLDB:
             condition.append(code)
             query_sql += " where symbol=%s"
 
-        if market is not None and len(market) > 0 and not market.isspace():
-            condition.append(market)
-            query_sql += " and market=%s" if has_where else " where market=%s"
+        if market is not None and len(market) > 0:
+            condition.extend(market)
+            market_where = "market in ("
+            for mark in market:
+                market_where += '%s,'
+            market_where += "'')"
+            query_sql += " and " + market_where if has_where else " where " + market_where
             has_where = True
 
         if where is not None and len(where) > 0 and not where.isspace():
