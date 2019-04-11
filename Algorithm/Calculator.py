@@ -12,7 +12,7 @@ def cal_score(base_data):
                           0.3 * base_data['ma2slope']) / base_data['af_close'] * 0.1 + base_data['pct_chg']
 
 
-def cal_ma(base_data, column_name='af_close', ma_array=(60, 30, 10, 8, 5, 4, 3, 2)):
+def cal_ma(base_data, column_name='af_close', ma_array=(60, 30, 20, 10, 8, 5, 4, 3, 2)):
     """
     对于传入的DataFrame，根据@param ma_array当中指定的计算项，依次计算移动均线MA
     这个计算是根据收盘价计算的
@@ -22,9 +22,9 @@ def cal_ma(base_data, column_name='af_close', ma_array=(60, 30, 10, 8, 5, 4, 3, 
     """
     for ma_i in ma_array:
         base_data['ma' + str(ma_i)] = base_data[column_name].rolling(ma_i).mean()
-        # 计算相应的MA的斜率：取极限的概念，后一天的MA值减去前一天的MA值
-        shift_ma = base_data['ma' + str(ma_i)].shift(-1)
-        base_data['ma' + str(ma_i) + "slope"] = (shift_ma - base_data['ma' + str(ma_i)])
+        # 计算相应的MA的斜率：取极限的概念，当天的MA值减去前一天的MA值
+        shift_ma = base_data['ma' + str(ma_i)].shift(1)
+        base_data['ma' + str(ma_i) + "slope"] = (base_data['ma' + str(ma_i)] - shift_ma)
 
 
 def cal_percent_ma(base_data, ma_array=(60, 30, 10, 8, 5, 4, 3, 2)):
@@ -497,6 +497,10 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
     E: 第一天涨停，第二天开盘未涨停，最终收盘价收到涨停
     F: 第一天涨停
     G: 第一天涨停，第二天开盘未涨停
+    H: 第一天涨停，第二天涨停，第三天水下开
+    I: 第一天一字涨停
+    J: 第一天一字涨停， 第二天收盘涨停
+    K: 第一天一字涨停，第二天开盘涨停并且收盘涨停
     概率统计如下：
     1. B / A    意义：第二天开盘涨停价买入，最终有多少几率当天挂掉
     2. C / A    意义：第二天开盘涨停价买入，最终有多少几率当天成功
@@ -506,12 +510,16 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
     6. S / F    意义：统计一下，第一天涨停后，第二天涨停的概率是多大
     7. A / F    意义：第一天开盘涨停后，第二天开盘涨停的比率如何
     8. G / F    意义：第一天开盘涨停后，第二天开盘未涨停的比率如何
+    9. H / S    意义：第一天涨停，第二天涨停，第三天水下开，获利概率
+    10. J / I   意义：第一天一字涨停，第二天涨停的概率是多大
+    11. K / I   意义：第一天一字涨停，第二天开盘涨停并且收盘涨停概率，决定是否开盘以涨停价买入
+    12. J / S   意义：第一天一字涨停，第二天涨停在两天连续涨停当中所占的比率
     同时对于各只股票单独统计一下，然后输出成为一个CSV文件
     :param data_center:
     :return:
     """
     result = pandas.DataFrame(columns=('ts_code', 'name', 'trade_date', 'is_next_day_max_up',
-                                       'buy_price', 'sold_price', 'is_win_10', 'is_win_7', 'is_win_3'))
+                                       'buy_price', 'sold_price', 'is_win_10', 'is_win_7', 'is_win_3', 'is_begin_down_end_max'))
     per_stock_rst = pandas.DataFrame(columns=('ts_code', 'name', 'begin_max_fail', 'begin_max_success',
                                               'begin_down_fail', 'begin_down_success'))
     stock_list = data_center.fetch_stock_list()
@@ -523,6 +531,10 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
     E_num = 0
     F_num = 0
     G_num = 0
+    H_num = 0
+    I_num = 0
+    J_num = 0
+    K_num = 0
 
     # 两日涨停时相关统计数据
     begin_max_suc_win_num = 0   # 第二天开盘涨停并且收盘涨停并且盈利的天数 / 第二天开盘涨停并且收盘涨停的天数
@@ -533,6 +545,20 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
     begin_down_max_win3_num = 0
     begin_down_max_win7_num = 0
     begin_down_max_win10_num = 0
+
+    begin_max_end_down_win_num = 0
+    begin_max_end_down_win3_num = 0
+    begin_max_end_down_win7_num = 0
+    begin_max_end_down_win10_num = 0
+    begin_max_end_down_max_win_num = 0
+    begin_max_end_down_max_win3_num = 0
+    begin_max_end_down_max_win7_num = 0
+    begin_max_end_down_max_win10_num = 0
+
+    water_down_win_num = 0
+    water_down_win3_num = 0
+    water_down_win7_num = 0
+    water_down_win10_num = 0
     for i in range(len(stock_list)):
         base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
                                                               begin_date='20160101')
@@ -542,9 +568,11 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
             base_data.loc[:, 'next_open'] = base_data['open'].shift(-1)
             base_data.loc[:, 'next_high'] = base_data['high'].shift(-1)
             base_data.loc[:, 'next_close'] = base_data['close'].shift(-1)
+            base_data.loc[:, 'third_open'] = base_data['open'].shift(-2)
             base_data.loc[:, 'next_open_pct'] = (base_data['next_open'] - base_data['close']) / base_data['close']
             base_data.loc[:, 'next_high_pct'] = (base_data['next_high'] - base_data['high']) / base_data['high']
             base_data.loc[:, 'sold_price'] = base_data['open'].shift(-2)
+            base_data.loc[:, 'max_sold_price'] = base_data['high'].shift(-2)
 
             if start_days is not None:
                 end_days = datetime.datetime.now().strftime("%Y%m%d") if end_days is None else end_days
@@ -562,8 +590,14 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
                       (base_data['next_pct_chg'] > 9)
             f_index = (base_data['pct_chg'] > 9) & (base_data['pre_pct_chg'] < 9)
             g_index = (base_data['pct_chg'] > 9) & (base_data['next_open_pct'] < 0.09) & (base_data['pre_pct_chg'] < 9)
+            h_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] > 9) & (base_data['pre_pct_chg'] < 9) & \
+                      (base_data['third_open'] < base_data['next_open'])
+            i_index = (base_data['pct_chg'] > 9) & (base_data['open'] == base_data['close']) & \
+                      (base_data['open'] == base_data['high'])
+            base_data.loc[:, 'b_index'] = b_index
             base_data.loc[:, 'c_index'] = c_index
             base_data.loc[:, 'e_index'] = e_index
+            base_data.loc[:, 'h_index'] = h_index
             S_num += len(s_index[s_index])
             A_num += len(a_index[a_index])
             B_num += len(b_index[b_index])
@@ -572,6 +606,10 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
             E_num += len(e_index[e_index])
             F_num += len(f_index[f_index])
             G_num += len(g_index[g_index])
+            H_num += len(h_index[h_index])
+            I_num += len(i_index[i_index])
+            J_num += len(base_data[s_index & i_index])
+            K_num += len(base_data[c_index & i_index])
 
             # 下面统计一下第二天开盘涨停并且收盘涨停的股票当中，获利百分比
             begin_max_value = base_data[c_index]
@@ -590,6 +628,32 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
             begin_down_max_win3_num += len(begin_down_max_value[begin_down_max_value['win_pct'] > 0.03])
             begin_down_max_win7_num += len(begin_down_max_value[begin_down_max_value['win_pct'] > 0.07])
             begin_down_max_win10_num += len(begin_down_max_value[begin_down_max_value['win_pct'] > 0.1])
+
+            # 下面统计一下第二天开盘涨停并且收盘未涨停的股票当中，获利百分比(开盘价卖出以及最高价卖出)
+            begin_max_end_down_value = base_data[b_index]
+            begin_max_end_down_value['win_pct'] = (begin_max_end_down_value['sold_price'] - begin_max_end_down_value['next_open']) / \
+                                              begin_max_end_down_value['next_open']
+            begin_max_end_down_value['max_win_pct'] = (begin_max_end_down_value['max_sold_price'] - begin_max_end_down_value['next_open']) / \
+                                              begin_max_end_down_value['next_open']
+            # 开盘价卖出获利百分比
+            begin_max_end_down_win_num += len(begin_max_end_down_value[begin_max_end_down_value['win_pct'] > 0])
+            begin_max_end_down_win3_num += len(begin_max_end_down_value[begin_max_end_down_value['win_pct'] > 0.03])
+            begin_max_end_down_win7_num += len(begin_max_end_down_value[begin_max_end_down_value['win_pct'] > 0.07])
+            begin_max_end_down_win10_num += len(begin_max_end_down_value[begin_max_end_down_value['win_pct'] > 0.1])
+            # 最高价卖出百分比
+            begin_max_end_down_max_win_num += len(begin_max_end_down_value[begin_max_end_down_value['max_win_pct'] > 0])
+            begin_max_end_down_max_win3_num += len(begin_max_end_down_value[begin_max_end_down_value['max_win_pct'] > 0.03])
+            begin_max_end_down_max_win7_num += len(begin_max_end_down_value[begin_max_end_down_value['max_win_pct'] > 0.07])
+            begin_max_end_down_max_win10_num += len(begin_max_end_down_value[begin_max_end_down_value['max_win_pct'] > 0.1])
+
+            # 统计一下两天封涨停并且第三天水下开的情况当中，获利概率如何
+            water_down_data = base_data[h_index]
+            water_down_data['win_pct'] = (water_down_data['sold_price'] - water_down_data['next_open']) \
+                                         / water_down_data['next_open']
+            water_down_win_num += len(water_down_data[water_down_data['win_pct'] > 0])
+            water_down_win3_num += len(water_down_data[water_down_data['win_pct'] > 0.03])
+            water_down_win7_num += len(water_down_data[water_down_data['win_pct'] > 0.07])
+            water_down_win10_num += len(water_down_data[water_down_data['win_pct'] > 0.1])
 
             m_s_num = len(s_index[s_index])
             m_a_num = len(a_index[a_index])
@@ -610,13 +674,16 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
             per_stock_rst = per_stock_rst.append(temp_dic, ignore_index=True)
 
             temp_rst = pandas.DataFrame(columns=('ts_code', 'name', 'trade_date', 'is_next_day_max_up',
-                                                 'buy_price', 'sold_price', 'is_win_10', 'is_win_7', 'is_win_3',
+                                                 'buy_price', 'sold_price', 'max_sold_price', 'is_win_10', 'is_win_7', 'is_win_3',
                                                  'win_pct', 'is_two_max_up', 'is_begin_max_end_max',
-                                                 'is_begin_down_end_max'))
+                                                 'is_begin_down_end_max', 'max_sold_win_pct', 'is_max_sold_3pct',
+                                                 'is_max_sold_7pct', 'is_max_sold_10pct', 'is_water_down_begin'))
             temp_value = base_data[s_index | b_index | d_index]
             # 以次日开盘价买入
             if not temp_value.empty:
                 temp_value.loc[:, 'win_pct'] = (temp_value['sold_price'] - temp_value['next_open']) \
+                                               / temp_value['next_open']
+                temp_value.loc[:, 'max_sold_win_pct'] = (temp_value['max_sold_price'] - temp_value['next_open']) \
                                                / temp_value['next_open']
                 temp_rst.loc[:, 'ts_code'] = temp_value['ts_code']
                 temp_rst.loc[:, 'name'] = stock_list[i][2]
@@ -624,13 +691,20 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
                 temp_rst.loc[:, 'is_next_day_max_up'] = temp_value['next_open_pct'] > 0.09
                 temp_rst.loc[:, 'buy_price'] = temp_value['next_open']
                 temp_rst.loc[:, 'sold_price'] = temp_value['sold_price']
+                temp_rst.loc[:, 'max_sold_price'] = temp_value['max_sold_price']
                 temp_rst.loc[:, 'is_win_10'] = temp_value['win_pct'] > 0.09
                 temp_rst.loc[:, 'is_win_7'] = temp_value['win_pct'] > 0.07
                 temp_rst.loc[:, 'is_win_3'] = temp_value['win_pct'] > 0.03
                 temp_rst.loc[:, 'win_pct'] = temp_value['win_pct']
+                temp_rst.loc[:, 'max_sold_win_pct'] = temp_value['max_sold_win_pct']
                 temp_rst.loc[:, 'is_two_max_up'] = temp_value['next_pct_chg'] > 9
                 temp_rst.loc[:, 'is_begin_max_end_max'] = temp_value['c_index']
                 temp_rst.loc[:, 'is_begin_down_end_max'] = temp_value['e_index']
+                temp_rst.loc[:, 'is_begin_max_end_down'] = temp_value['b_index']
+                temp_rst.loc[:, 'is_water_down_begin'] = temp_value['h_index']
+                temp_rst.loc[:, 'is_max_sold_10pct'] = temp_value['max_sold_win_pct'] > 0.09
+                temp_rst.loc[:, 'is_max_sold_7pct'] = temp_value['max_sold_win_pct'] > 0.07
+                temp_rst.loc[:, 'is_max_sold_3pct'] = temp_value['max_sold_win_pct'] > 0.03
                 result = result.append(temp_rst)
     if result is not None:
         # 统计一下数据
@@ -639,6 +713,7 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
         begin_down_fail = D_num / S_num
         begin_down_success = E_num / S_num
         begin_max_final_suc = C_num / S_num
+        water_down_pct = H_num / S_num
 
         # 统计一下两日涨停的获利概率
         two_max_up_rst = result[result['is_two_max_up']]
@@ -654,6 +729,9 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
         extra_content += "连续两天涨停/第一天涨停：" + str(S_num / F_num) + "\n"
         extra_content += "第一天涨停且第二天开盘涨停/第一天涨停：" + str(A_num / F_num) + "\n"
         extra_content += "第一天涨停且第二天开盘未涨停/第一天涨停：" + str(G_num / F_num) + "\n"
+        extra_content += "第一天一字涨停且第二天收盘涨停/第一天一字涨停：" + str(J_num / I_num) + "\n"
+        extra_content += "第一天一字涨停且第二天收盘涨停/第一天开盘涨停且收盘涨停：" + str(K_num / I_num) + "\n"
+        extra_content += "第一天一字涨停且第二天收盘涨停/两日涨停成功：" + str(J_num / S_num) + "\n"
         # 下面统计一下如下数据：
         # 1. 第二天开盘涨停并且收盘涨停的时候，第三天开盘价卖出的收益概率分布
         # 2. 第二天开盘未涨停并且收盘涨停的时候，第三天开盘价卖出的收益概率分布
@@ -672,15 +750,37 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
         extra_content += "第二天开盘未涨停并且收盘涨停并且盈利超7%的天数/第二天开盘未涨停并且收盘涨停的天数:" + \
                          str(begin_down_max_win7_num / E_num) + "\n"
         extra_content += "第二天开盘未涨停并且收盘涨停并且盈利超10%的天数/第二天开盘未涨停并且收盘涨停的天数:" + \
-                         str(begin_down_max_win10_num / E_num) + "\n" + "\n"
+                         str(begin_down_max_win10_num / E_num) + "\n"
+        # 3. 第二天开盘涨停收盘未涨停的时候，第三天开盘价卖出的收益情况
+        extra_content += "第二天开盘涨停并且收盘未涨停并且盈利的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_win_num / B_num) + "\n"
+        extra_content += "第二天开盘涨停并且收盘未涨停并且盈利超3%的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_win3_num / B_num) + "\n"
+        extra_content += "第二天开盘涨停并且收盘未涨停并且盈利超7%的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_win7_num / B_num) + "\n"
+        extra_content += "第二天开盘涨停并且收盘未涨停并且盈利超10%的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_win10_num / B_num) + "\n"
+        extra_content += "第二天开盘涨停并且收盘未涨停并且最高价卖出盈利的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_max_win_num / B_num) + "\n"
+        extra_content += "第二天开盘涨停并且收盘未涨停并且最高价卖出盈利超3%的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_max_win3_num / B_num) + "\n"
+        extra_content += "第二天开盘涨停并且收盘未涨停并且最高价卖出盈利超7%的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_max_win7_num / B_num) + "\n"
+        extra_content += "第二天开盘涨停并且收盘未涨停并且最高价卖出盈利超10%的天数/第二天开盘涨停并且收盘未涨停的天数:" + \
+                         str(begin_max_end_down_max_win10_num / B_num) + "\n"
+        extra_content += "两日涨停并且第三天水下开天数/两日涨停天数：" + str(water_down_pct) + "\n"
+        extra_content += "两日涨停并且第三天水下开并且获利天数/连续两天涨停" + str(water_down_win_num / H_num) + "\n"
+        extra_content += "两日涨停并且第三天水下开并且获利超3%天数/连续两天涨停" + str(water_down_win3_num / H_num) + "\n"
+        extra_content += "两日涨停并且第三天水下开并且获利超7%天数/连续两天涨停" + str(water_down_win7_num / H_num) + "\n"
+        extra_content += "两日涨停并且第三天水下开并且获利超10%天数/连续两天涨停" + str(water_down_win10_num / H_num) + "\n"  + "\n"
         extra_content += "两日涨停获利概率：" + str(win_pct) + "\n"
         extra_content += "两日涨停获利超过3%概率：" + str(win_3_pct) + "\n"
         extra_content += "两日涨停获利超过7%概率：" + str(win_7_pct) + "\n"
         extra_content += "两日涨停获利超过10%概率：" + str(win_10_pct) + "\n"
         FileOutput.csv_output(None, result, 'total_max_up_rate.csv',
-                              extra_content=extra_content, spe_dir_name='max_up_rate_with_buy_03')
+                              extra_content=extra_content, spe_dir_name='max_up_rate_with_buy_07')
     if per_stock_rst is not None and not per_stock_rst.empty:
-        FileOutput.csv_output(None, result, 'per_stock_max_up_rate.csv', spe_dir_name='max_up_rate_with_buy_03')
+        FileOutput.csv_output(None, result, 'per_stock_max_up_rate.csv', spe_dir_name='max_up_rate_with_buy_07')
 
 
 def cal_macd(data_center):
@@ -698,13 +798,14 @@ def cal_macd(data_center):
 def cal_macd_per_stock(base_data):
     """
     单只股票计算MACD
+    :type base_data: object
     """
     if not base_data.empty:
-        base_data.loc[:, 'ema26'] = 0
-        base_data.loc[:, 'ema12'] = 0
-        base_data.loc[:, 'diff'] = 0
-        base_data.loc[:, 'dea'] = 0
-        base_data.loc[:, 'bar'] = 0
+        base_data.loc[:, 'ema26'] = float(0)
+        base_data.loc[:, 'ema12'] = float(0)
+        base_data.loc[:, 'diff'] = float(0)
+        base_data.loc[:, 'dea'] = float(0)
+        base_data.loc[:, 'bar'] = float(0)
         for i in range(1, len(base_data)):
             base_data.at[i, 'ema12'] = (11 * base_data.at[i - 1, 'ema12'] + 2 * base_data.at[i, 'close']) / 13
             base_data.at[i, 'ema26'] = (25 * base_data.at[i - 1, 'ema26'] + 2 * base_data.at[i, 'close']) / 27
@@ -713,4 +814,185 @@ def cal_macd_per_stock(base_data):
         base_data.loc[:, 'bar'] = base_data['diff'] - base_data['dea']
         base_data.loc[:, 'bar'] = base_data['bar'] * 2
     return base_data
- 
+
+
+def cal_trix_per_stock(base_data):
+    """
+    计算TRIX指标数值，按照同花顺的默认参数来：TRIX（12,20）
+    :param base_data:
+    :return:
+    """
+    if not base_data.empty:
+        base_data.loc[:, 'ax'] = float(0)
+        base_data.loc[:, 'bx'] = float(0)
+        base_data.loc[:, 'trix'] = float(0)
+        base_data.loc[:, 'trma'] = float(0)
+        for i in range(1, len(base_data)):
+            base_data.at[i, 'ax'] = (base_data.at[i - 1, 'ax'] * 11 + base_data.at[i, 'close'] * 2) / 13
+            base_data.at[i, 'bx'] = (base_data.at[i - 1, 'bx'] * 11 + base_data.at[i, 'ax'] * 2) / 13
+            base_data.at[i, 'trix'] = (base_data.at[i - 1, 'trix'] * 11 + base_data.at[i, 'bx'] * 2) / 13
+        base_data.loc[:, 'trma'] = base_data['trix'].rolling(20).mean()
+    return base_data
+
+
+def cal_kdj_per_stock(base_data):
+    """
+    计算单只stock的KDJ指标
+    :param base_data:
+    :return:
+    """
+    if not base_data.empty:
+        recent_9_max_close = base_data['close'].rolling(9).max()
+        recent_9_min_close = base_data['close'].rolling(9).min()
+        if len(base_data) > 9:
+            recent_min_value = 99999
+            recent_max_value = 0
+            for k in range(8):
+                if base_data.at[k, 'close'] < recent_min_value:
+                    recent_min_value = base_data.at[k, 'close']
+                if base_data.at[k, 'close'] > recent_max_value:
+                    recent_max_value = base_data.at[k, 'close']
+                recent_9_min_close[k] = recent_min_value
+                recent_9_max_close[k] = recent_max_value
+        rsv = (base_data['close'] - recent_9_min_close) / (recent_9_max_close - recent_9_min_close) * 100
+        base_data.loc[:, 'k_value'] = float(0)
+        base_data.loc[:, 'd_value'] = float(0)
+        base_data.loc[:, 'j_value'] = float(0)
+        for i in range(1, len(base_data)):
+            temp_val = ((2 * base_data.at[i - 1, 'k_value']) + rsv[i]) / 3
+            temp_val = 100 if temp_val > 100 else temp_val
+            temp_val = 0 if temp_val < 0 else temp_val
+            base_data.at[i, 'k_value'] = temp_val
+            temp_val = ((2 * base_data.at[i - 1, 'd_value']) + base_data.at[i - 1, 'k_value']) / 3
+            temp_val = 100 if temp_val > 100 else temp_val
+            temp_val = 0 if temp_val < 0 else temp_val
+            base_data.at[i, 'd_value'] = temp_val
+    j_t_val = 3 * base_data['k_value']
+    temp_val = 2 * base_data['d_value']
+    j_val = j_t_val.sub(temp_val)
+    base_data.loc[:, 'j_value'] = j_val
+    return base_data
+
+
+def find_quick_down_stock(data_center):
+    """
+    寻找快速下跌的股票
+    1. 5个交易日之内跌去了13%的股票
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20190101')
+        if not base_data.empty:
+            five_before_price = base_data['close'].shift(5)
+            base_data.loc[:, 'five_pct'] = (five_before_price - base_data['close']) / base_data['close']
+            if base_data.at[len(base_data) - 1, 'five_pct'] > 0.13:
+                result = result.append({'ts_code': stock_list[i][0], 'name': stock_list[i][2]}, ignore_index=True)
+    file_name = 'quick_down_stock'
+    now_time = datetime.datetime.now()
+    now_time_str = now_time.strftime('%Y%m%d')
+    file_name += now_time_str
+    file_name += '.csv'
+    FileOutput.csv_output(None, result, file_name, spe_dir_name='quick_down_stock')
+
+
+def find_quick_up_stock(data_center, need_stable=False):
+    """
+    查找快速上涨的股票
+    1. 5个交易日之内上涨了13%的股票
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20190101')
+        if not base_data.empty:
+            five_before_price = base_data['close'].shift(5)
+            base_data.loc[:, 'five_pct'] = (base_data['close'] - five_before_price) / five_before_price
+            if base_data.at[len(base_data) - 1, 'five_pct'] > 0.13:
+                if need_stable and base_data.at[len(base_data) - 1, 'five_pct'] < 0.20:
+                    result = result.append({'ts_code': stock_list[i][0], 'name': stock_list[i][2]}, ignore_index=True)
+                elif not need_stable:
+                    result = result.append({'ts_code': stock_list[i][0], 'name': stock_list[i][2]}, ignore_index=True)
+    file_name = 'quick_up_stock'
+    file_name = file_name + '_stable' if need_stable else file_name
+    file_name += '.csv'
+    FileOutput.csv_output(None, result, file_name)
+
+
+def find_continue_max_up_stock(data_center, continue_days=5):
+    """
+    连续5天涨停的股票
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'start_date'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20190101')
+        if not base_data.empty:
+            for j in range(1, continue_days):
+                base_data.loc[:, 'pct_chg' + str(j)] = base_data['pct_chg'].shift(-j)
+            base_data.loc[:, 'is_success'] = base_data['pct_chg'] > 9
+            for j in range(1, continue_days):
+                base_data.loc[:, 'is_success'] = (base_data['is_success'] & (base_data['pct_chg' + str(j)] > 9))
+            temp_rst = base_data[base_data['is_success']]
+            temp_rst = temp_rst.loc[:, ('ts_code', 'trade_date')]
+            if not temp_rst.empty:
+                temp_rst.loc[:, 'name'] = stock_list[i][2]
+                result = result.append(temp_rst)
+    file_name = 'success_continue_win_'
+    file_name += str(continue_days)
+    file_name += '.csv'
+    FileOutput.csv_output(None, result, file_name)
+
+
+def max_up_continue_days(data_center):
+    """
+    探究一下连续涨停这种现：
+    1. 连续多少天涨停最为常见
+    2. N天连续涨停之后，后续一天能够涨停的比率
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'start_date', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            continue_days = 0
+            for j in range(len(base_data)):
+                if base_data.at[j, 'pct_chg'] > 9 and base_data.at[j, 'close'] == base_data.at[j, 'high']:
+                    temp_dic = {
+                        'ts_code': stock_list[i][0],
+                        'name': stock_list[i][2]
+                    }
+                    if continue_days == 0:
+                        temp_dic['start_date'] = base_data.at[j, 'trade_date']
+                        continue_days += 1
+                        temp_dic['continue_days'] = continue_days
+                        result = result.append(temp_dic, ignore_index=True)
+                    else:
+                        continue_days += 1
+                        result.at[len(result) - 1, 'continue_days'] = continue_days
+                else:
+                    continue_days = 0
+    if not result.empty:
+        # 统计数据
+        continue_days_value = result['continue_days']
+        min_value = continue_days_value.min()
+        max_value = continue_days_value.max()
+        extra_content = ''
+        for j in range(min_value, max_value + 1):
+            j_show = continue_days_value[continue_days_value == j]
+            show_num = len(j_show)
+            show_rate = show_num / len(continue_days_value)
+            extra_content += '涨停' + str(j) + '天出现次数：' + str(show_num) + '， 出现频率：' + str(show_rate) + "\n"
+        FileOutput.csv_output(None, result, 'continue_max_up_show_info01.csv', extra_content=extra_content)

@@ -490,7 +490,7 @@ def process_dt_every_ope(result, base_data, i, stock_code, ope_type, every_buy_v
             if ope_num == 0:
                 buy_min_money = 100 * temp_dic['ope_price']
                 if buy_min_money < last_free_value:
-                    ope_num = 1 # 买一手
+                    ope_num = 1  # 买一手
             ope_num = ope_num * 100
         # 否则为卖出，则卖出的时候持有数量必须大于0
         elif result.at[len(result) - 1, 'curr_stock_num'] > 0:
@@ -1004,7 +1004,7 @@ def n_max_up_buy_verify(data_center):
             base_data.loc[:, 'open_pct'] = (base_data['next_open'] - base_data['close']) / base_data['close']
             base_data.loc[:, 'high_pct'] = (base_data['next_high'] - base_data['high']) / base_data['high']
             ok_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] > 9) & (base_data['pre_pct_chg'] < 9)
-            fail_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] < 9) & (base_data['high_pct'] > 0.09)\
+            fail_index = (base_data['pct_chg'] > 9) & (base_data['next_pct_chg'] < 9) & (base_data['high_pct'] > 0.09) \
                          & (base_data['pre_pct_chg'] < 9)
             ok_num += len(ok_index[ok_index])
             fail_num += len(fail_index[fail_index])
@@ -1129,3 +1129,526 @@ def recent_two_max_up_rate(data_center):
         success_up_percent = ok_num / (ok_num + fail_num)
         extra_content += "success max up is " + str(success_up_percent)
         FileOutput.csv_output(None, result, 'max_buy_verify_04.csv', extra_content=extra_content)
+
+
+def macd_buy_verify(data_center):
+    """
+    通过MACD指标发出的消息来确定买入卖出，看盈利如何
+    """
+    result = pandas.DataFrame(columns=(
+    'ts_code', 'name', 'trade_date', 'buy_price', 'sold_price', 'win_pct', 'is_win_20', 'is_win_40', 'ema12', 'ema26',
+    'diff', 'dea', 'bar'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            is_continue_up = False
+            for j in range(len(base_data)):
+                temp_dic = {
+                    'ts_code': stock_list[i][0],
+                    'name': stock_list[i][2],
+                    'trade_date': base_data.at[j, 'trade_date']
+                }
+                if base_data.at[j, 'bar'] > 0 and not is_continue_up:
+                    temp_dic['buy_price'] = base_data.at[j, 'close']
+                    result = result.append(temp_dic, ignore_index=True)
+                    is_continue_up = True
+                elif base_data.at[j, 'bar'] < 0 and is_continue_up:
+                    sold_price = base_data.at[j, 'close']
+                    buy_pirce = result.at[len(result) - 1, 'buy_price']
+                    temp_dic['sold_price'] = sold_price
+                    temp_dic['win_pct'] = (sold_price - buy_pirce) / buy_pirce
+                    result = result.append(temp_dic, ignore_index=True)
+                    is_continue_up = False
+    result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+    result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+    if not result.empty:
+        win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+        win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+        extra_content = '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+        extra_content += '盈利超40%比率：' + str(win_40_pct_rate)
+        FileOutput.csv_output(None, result, 'macd_buy_verify.csv', extra_content=extra_content)
+
+
+def kdj_buy_verify(data_center):
+    """
+    利用KDJ指标进行买卖操作的验证
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price', 'sold_price', 'win_pct',
+                                       'is_win_20', 'is_win_40', 'buy_k', 'buy_d', 'buy_j', 'sold_k', 'sold_d',
+                                       'sold_j',
+                                       'is_win', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            base_data = Calculator.cal_kdj_per_stock(base_data)
+            base_data.loc[:, 'diff'] = base_data['j_value'] - base_data['k_value']
+            is_continue_up = False
+            for j in range(len(base_data)):
+                temp_dic = {
+                    'ts_code': stock_list[i][0],
+                    'name': stock_list[i][2],
+                    'trade_date': base_data.at[j, 'trade_date']
+                }
+                if base_data.at[j, 'diff'] > 0 and not is_continue_up:
+                    temp_dic['buy_price'] = base_data.at[j, 'close']
+                    temp_dic['buy_date'] = base_data.at[j, 'trade_date']
+                    temp_dic['buy_k'] = base_data.at[j, 'k_value']
+                    temp_dic['buy_d'] = base_data.at[j, 'd_value']
+                    temp_dic['buy_j'] = base_data.at[j, 'j_value']
+                    is_continue_up = True
+                    result = result.append(temp_dic, ignore_index=True)
+                elif base_data.at[j, 'diff'] < 0 and is_continue_up:
+                    result.at[len(result) - 1, 'sold_price'] = base_data.at[j, 'close']
+                    result.at[len(result) - 1, 'sold_date'] = base_data.at[j, 'trade_date']
+                    result.at[len(result) - 1, 'sold_k'] = base_data.at[j, 'k_value']
+                    result.at[len(result) - 1, 'sold_d'] = base_data.at[j, 'd_value']
+                    result.at[len(result) - 1, 'sold_j'] = base_data.at[j, 'j_value']
+
+                    start_date = result.at[len(result) - 1, 'buy_date']
+                    start_date = datetime.date(int(start_date[0:4]), int(start_date[4:6]), int(start_date[6:8]))
+                    end_date = base_data.at[j, 'trade_date']
+                    end_date = datetime.date(int(end_date[0:4]), int(end_date[4:6]), int(end_date[6:8]))
+                    result.at[len(result) - 1, 'continue_days'] = (end_date - start_date).days
+                    is_continue_up = False
+            result.loc[:, 'win_pct'] = (result['sold_price'] - result['buy_price']) / \
+                                       result['buy_price']
+            result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+            result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+            result.loc[:, 'is_win'] = result['win_pct'] > 0
+        if not result.empty:
+            win_rate = len(result[result['is_win']]) / len(result)
+            win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+            win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+            extra_content = '盈利比率：' + str(win_rate) + '\n'
+            extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+            extra_content += '盈利超40%比率：' + str(win_40_pct_rate)
+            FileOutput.csv_output(None, result, 'kdj_buy_verify.csv', extra_content=extra_content)
+
+
+def trix_buy_verify(data_center):
+    """
+    利用TRIX指标来进行买入卖出的判定操作
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price', 'sold_price', 'win_pct',
+                                       'is_win_20', 'is_win_40', 'buy_trix', 'buy_trma', 'sold_trix', 'sold_trma',
+                                       'is_win', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            base_data = Calculator.cal_trix_per_stock(base_data)
+            base_data.loc[:, 'diff'] = base_data['trix'] - base_data['trma']
+            is_continue_up = False
+            for j in range(len(base_data)):
+                temp_dic = {
+                    'ts_code': stock_list[i][0],
+                    'name': stock_list[i][2],
+                    'trade_date': base_data.at[j, 'trade_date']
+                }
+                if base_data.at[j, 'diff'] > 0 and not is_continue_up:
+                    temp_dic['buy_price'] = base_data.at[j, 'close']
+                    temp_dic['buy_date'] = base_data.at[j, 'trade_date']
+                    temp_dic['buy_trma'] = base_data.at[j, 'trma']
+                    temp_dic['buy_trix'] = base_data.at[j, 'trix']
+                    is_continue_up = True
+                    result = result.append(temp_dic, ignore_index=True)
+                elif base_data.at[j, 'diff'] < 0 and is_continue_up:
+                    result.at[len(result) - 1, 'sold_price'] = base_data.at[j, 'close']
+                    result.at[len(result) - 1, 'sold_date'] = base_data.at[j, 'trade_date']
+                    result.at[len(result) - 1, 'sold_trma'] = base_data.at[j, 'trma']
+                    result.at[len(result) - 1, 'sold_trix'] = base_data.at[j, 'trix']
+
+                    start_date = result.at[len(result) - 1, 'buy_date']
+                    start_date = datetime.date(int(start_date[0:4]), int(start_date[4:6]), int(start_date[6:8]))
+                    end_date = base_data.at[j, 'trade_date']
+                    end_date = datetime.date(int(end_date[0:4]), int(end_date[4:6]), int(end_date[6:8]))
+                    result.at[len(result) - 1, 'continue_days'] = (end_date - start_date).days
+                    is_continue_up = False
+            result.loc[:, 'win_pct'] = (result['sold_price'] - result['buy_price']) / \
+                                       result['buy_price']
+            result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+            result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+            result.loc[:, 'is_win'] = result['win_pct'] > 0
+    if not result.empty:
+        win_rate = len(result[result['is_win']]) / len(result)
+        win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+        win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+        extra_content = '盈利比率：' + str(win_rate) + '\n'
+        extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+        extra_content += '盈利超40%比率：' + str(win_40_pct_rate)
+        FileOutput.csv_output(None, result, 'macd_buy_verify.csv', extra_content=extra_content)
+
+
+def four_red_verify(data_center):
+    """
+    四根阳线的话，就买入看，结果如何
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price', 'sold_price', 'win_pct',
+                                       'is_win_20', 'is_win_40', 'buy_trix', 'buy_trma', 'sold_trix', 'sold_trma',
+                                       'is_win', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            pass
+
+
+def ma20_up_buy(data_center):
+    """
+    根据20日移动均线进行买卖操作，上行的时候买入，下行的时候sold
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price', 'sold_price', 'win_pct',
+                                       'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            Calculator.cal_ma(base_data, 'close')
+            is_continue_up = False
+            for j in range(len(base_data)):
+                temp_dic = {
+                    'ts_code': stock_list[i][0],
+                    'name': stock_list[i][2]
+                }
+                if base_data.at[j, 'ma20slope'] > 0 and not is_continue_up:
+                    temp_dic['buy_price'] = base_data.at[j, 'close']
+                    temp_dic['buy_date'] = base_data.at[j, 'trade_date']
+                    is_continue_up = True
+                    result = result.append(temp_dic, ignore_index=True)
+                elif base_data.at[j, 'ma20slope'] < 0 and is_continue_up:
+                    result.at[len(result) - 1, 'sold_price'] = base_data.at[j, 'close']
+                    result.at[len(result) - 1, 'sold_date'] = base_data.at[j, 'trade_date']
+
+                    start_date = result.at[len(result) - 1, 'buy_date']
+                    start_date = datetime.date(int(start_date[0:4]), int(start_date[4:6]), int(start_date[6:8]))
+                    end_date = base_data.at[j, 'trade_date']
+                    end_date = datetime.date(int(end_date[0:4]), int(end_date[4:6]), int(end_date[6:8]))
+                    result.at[len(result) - 1, 'continue_days'] = (end_date - start_date).days
+                    is_continue_up = False
+            result.loc[:, 'win_pct'] = (result['sold_price'] - result['buy_price']) / \
+                                       result['buy_price']
+            result.loc[:, 'is_win_10'] = result['win_pct'] > 0.1
+            result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+            result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+            result.loc[:, 'is_win'] = result['win_pct'] > 0
+    if not result.empty:
+        win_rate = len(result[result['is_win']]) / len(result)
+        win_10_pct_rate = len(result[result['is_win_10']]) / len(result)
+        win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+        win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+        extra_content = '盈利比率：' + str(win_rate) + '\n'
+        extra_content += '盈利超10%比率：' + str(win_10_pct_rate) + '\n'
+        extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+        extra_content += '盈利超40%比率：' + str(win_40_pct_rate) + '\n'
+        # 统计一下平均的盈利百分比
+        sum_win_pct = result['win_pct'].sum()
+        extra_content += '平均盈利比率：' + str(sum_win_pct / len(result)) + '\n'
+        FileOutput.csv_output(None, result, 'ma20_buy_verify.csv', extra_content=extra_content)
+
+
+def check_k_buy(data_center):
+    """
+    利用变线的概念做下买入判定
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price', 'sold_price', 'win_pct',
+                                       'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            continue_down_days = 0
+            has_stock = False
+            for j in range(len(base_data)):
+                temp_dic = {
+                    'ts_code': stock_list[i][0],
+                    'name': stock_list[i][1]
+                }
+                if base_data.at[j, 'pct_chg'] < 0:
+                    continue_down_days += 1
+                    if has_stock:
+                        has_stock = False
+                        result.at[len(result) - 1, 'sold_date'] = base_data.at[j, 'trade_date']
+
+                        sold_price = base_data.at[j, 'close']
+                        buy_price = result.at[len(result) - 1, 'buy_price']
+                        result.at[len(result) - 1, 'sold_price'] = sold_price
+                        win_pct = (sold_price - buy_price) / buy_price
+                        result.at[len(result) - 1, 'win_pct'] = win_pct
+                        start_date = result.at[len(result) - 1, 'buy_date']
+                        start_date = datetime.date(int(start_date[0:4]), int(start_date[4:6]), int(start_date[6:8]))
+                        end_date = base_data.at[j, 'trade_date']
+                        end_date = datetime.date(int(end_date[0:4]), int(end_date[4:6]), int(end_date[6:8]))
+                        result.at[len(result) - 1, 'continue_days'] = (end_date - start_date).days
+                elif continue_down_days >= 3:
+                    continue_down_days = 0
+                    has_stock = True
+                    temp_dic['buy_date'] = base_data.at[j, 'trade_date']
+                    temp_dic['buy_price'] = base_data.at[j, 'close']
+                    result = result.append(temp_dic, ignore_index=True)
+                else:
+                    continue_down_days = 0
+    if not result.empty:
+        result.loc[:, 'win_pct'] = (result['sold_price'] - result['buy_price']) / \
+                                   result['buy_price']
+        result.loc[:, 'is_win_10'] = result['win_pct'] > 0.1
+        result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+        result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+        result.loc[:, 'is_win'] = result['win_pct'] > 0
+
+        win_rate = len(result[result['is_win']]) / len(result)
+        win_10_pct_rate = len(result[result['is_win_10']]) / len(result)
+        win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+        win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+        extra_content = '盈利比率：' + str(win_rate) + '\n'
+        extra_content += '盈利超10%比率：' + str(win_10_pct_rate) + '\n'
+        extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+        extra_content += '盈利超40%比率：' + str(win_40_pct_rate) + '\n'
+        # 统计一下平均的盈利百分比
+        sum_win_pct = result['win_pct'].sum()
+        extra_content += '平均盈利比率：' + str(sum_win_pct / len(result)) + '\n'
+        FileOutput.csv_output(None, result, 'chang_k_buy_verify.csv', extra_content=extra_content)
+
+
+def verify_stock_by_ma20(data_center):
+    """
+    根据MA20以及收盘价进行买卖的操作
+    1. MA20必须处于上升趋势当中
+    2. 收盘价高于MA20
+    3. 以上两条条件满足后，如果买入当天是阴线，则不买入，直到碰到阳线为止
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price', 'sold_price', 'win_pct',
+                                       'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            Calculator.cal_ma(base_data, column_name='close', ma_array=(40, 20))
+            is_continue_up = False
+            for j in range(len(base_data)):
+                temp_dic = {
+                    'ts_code': stock_list[i][0],
+                    'name': stock_list[i][2]
+                }
+                if base_data.at[j, 'ma20slope'] > 0 and base_data.at[j, 'close'] > base_data.at[j, 'ma20'] \
+                        and not is_continue_up:  # and base_data.at[j, 'close'] > base_data.at[j, 'open']
+                    temp_dic['buy_price'] = base_data.at[j, 'close']
+                    temp_dic['buy_date'] = base_data.at[j, 'trade_date']
+                    is_continue_up = True
+                    result = result.append(temp_dic, ignore_index=True)
+                elif base_data.at[j, 'ma20slope'] < 0 and is_continue_up:
+                    result.at[len(result) - 1, 'sold_price'] = base_data.at[j, 'close']
+                    result.at[len(result) - 1, 'sold_date'] = base_data.at[j, 'trade_date']
+
+                    start_date = result.at[len(result) - 1, 'buy_date']
+                    start_date = datetime.date(int(start_date[0:4]), int(start_date[4:6]), int(start_date[6:8]))
+                    end_date = base_data.at[j, 'trade_date']
+                    end_date = datetime.date(int(end_date[0:4]), int(end_date[4:6]), int(end_date[6:8]))
+                    result.at[len(result) - 1, 'continue_days'] = (end_date - start_date).days
+                    is_continue_up = False
+            result.loc[:, 'win_pct'] = (result['sold_price'] - result['buy_price']) / \
+                                       result['buy_price']
+            result.loc[:, 'is_win_10'] = result['win_pct'] > 0.1
+            result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+            result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+            result.loc[:, 'is_win'] = result['win_pct'] > 0
+    if not result.empty:
+        win_rate = len(result[result['is_win']]) / len(result)
+        win_10_pct_rate = len(result[result['is_win_10']]) / len(result)
+        win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+        win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+        extra_content = '盈利比率：' + str(win_rate) + '\n'
+        extra_content += '盈利超10%比率：' + str(win_10_pct_rate) + '\n'
+        extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+        extra_content += '盈利超40%比率：' + str(win_40_pct_rate) + '\n'
+        # 统计一下平均的盈利百分比
+        sum_win_pct = result['win_pct'].sum()
+        extra_content += '平均盈利比率：' + str(sum_win_pct / len(result)) + '\n'
+        FileOutput.csv_output(None, result, 'ma20_price_great_buy_verify_01.csv', extra_content=extra_content)
+
+
+def find_stock_by_ma20(data_center):
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'last_price', 'is_close_bigger_ma20', 'is_ma20_greater_ma40',
+                                       'is_k_cross_ma20', 'is_k_lower__ma20'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20190101')
+        if not base_data.empty:
+            Calculator.cal_ma(base_data, column_name='close', ma_array=(40, 20))
+            if base_data.at[len(base_data) - 1, 'ma20slope'] > 0:
+                temp_dic = {'ts_code': stock_list[i][0], 'name': stock_list[i][2],
+                            'last_price': base_data.at[len(base_data) - 1, 'close'],
+                            'is_close_bigger_ma20': base_data.at[len(base_data) - 1, 'close'] > \
+                                                    base_data.at[len(base_data) - 1, 'ma20'],
+                            'is_ma20_greater_ma40': base_data.at[len(base_data) - 1, 'ma20'] > \
+                                                    base_data.at[len(base_data) - 1, 'ma40'],
+                            'is_k_cross_ma20': base_data.at[len(base_data) - 1, 'close'] > base_data.at[
+                                len(base_data) - 1, 'ma20'] > \
+                                               base_data.at[len(base_data) - 1, 'open'],
+                            'is_k_lower__ma20': base_data.at[len(base_data) - 1, 'close'] < base_data.at[
+                                len(base_data) - 1, 'ma20'] > \
+                                                base_data.at[len(base_data) - 1, 'open']}
+                result = result.append(temp_dic, ignore_index=True)
+    FileOutput.csv_output(None, result, 'ma_check_stock.csv')
+
+
+def find_maximum_win_pct(data_center):
+    """
+    找出期间之内的大涨上幅的波段
+    1. 以这种方式判定是否是持续上涨当中
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price', 'sold_price', 'win_pct',
+                                       'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20190101')
+        if not base_data.empty:
+            windows_30 = base_data.rolling(30)
+            min_value = windows_30['close'].min()
+            max_value = windows_30['close'].max()
+            min_value_index = base_data['close'] == min_value
+            max_value_index = base_data['close'] == max_value
+            temp_result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_date', 'sold_date', 'buy_price',
+                                                    'sold_price', 'win_pct', 'is_win_10', 'is_win_20', 'is_win_40',
+                                                    'is_win', 'continue_days'))
+            min_value = base_data[min_value_index]['close']
+            min_value_date = base_data[min_value_index]['trade_date']
+            max_value = base_data[max_value_index]['close']
+            max_value_date = base_data[max_value_index]['trade_date']
+            if max_value_date[0] < min_value_date[0]:
+                max_value_date = max_value_date.shift(-1)
+                max_value = max_value.shift(-1)
+            temp_result.loc[:, 'ts_code'] = stock_list[i][0]
+            temp_result.loc[:, 'name'] = stock_list[i][2]
+            temp_result.loc[:, 'sold_price'] = max_value
+            temp_result.loc[:, 'win_pct'] = (max_value - min_value) / min_value
+            temp_result.loc[:, 'buy_date'] = min_value_date
+            temp_result.loc[:, 'sold_date'] = max_value_date
+            temp_result.loc[:, 'buy_price'] = min_value
+            temp_result.loc[:, 'sold_price'] = max_value
+            temp_result.loc[:, 'sold_price'] = max_value
+            temp_result.loc[:, 'continue_days'] = temp_result.apply(lambda x: x[0])
+            pass
+
+
+def quick_down_stock_verify(data_center):
+    """
+    快速下跌的股票走稳之后买入，看效果如何
+    1. 5个交易日之内跌去了13%的股票
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(
+        columns=('ts_code', 'name', 'buy_price', 'sold_price', 'buy_date', 'sold_date', 'win_pct'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            five_before_price = base_data['close'].shift(5)
+            base_data.loc[:, 'five_pct'] = (five_before_price - base_data['close']) / base_data['close']
+            Calculator.cal_ma(base_data, column_name='close', ma_array=(5,))
+            # 先看下如果是30个交易日之后卖出的话，结果如何
+            base_data.loc[:, 'sold_price'] = base_data['close'].shift(-30)
+            base_data.loc[:, 'win_pct'] = (base_data['sold_price'] - base_data['close']) / base_data['close']
+            base_data.loc[:, 'buy_price'] = base_data['close']
+            base_data.loc[:, 'buy_date'] = base_data['trade_date']
+            base_data.loc[:, 'sold_date'] = base_data['trade_date'].shift(-30)
+            base_data = base_data[base_data['five_pct'] > 0.13]
+            if not base_data.empty:
+                temp_rst = base_data.loc[:, ('ts_code', 'buy_price', 'sold_price', 'buy_date', 'sold_date', 'win_pct')]
+                temp_rst.loc[:, 'name'] = stock_list[i][2]
+                result = result.append(temp_rst)
+    if not result.empty:
+        result.loc[:, 'is_win'] = result['win_pct'] > 0
+        result.loc[:, 'is_win_10'] = result['win_pct'] > 0.1
+        result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+        result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+        win_rate = len(result[result['is_win']]) / len(result)
+        win_10_pct_rate = len(result[result['is_win_10']]) / len(result)
+        win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+        win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+        extra_content = '盈利比率：' + str(win_rate) + '\n'
+        extra_content += '盈利超10%比率：' + str(win_10_pct_rate) + '\n'
+        extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+        extra_content += '盈利超40%比率：' + str(win_40_pct_rate) + '\n'
+        # 统计一下平均的盈利百分比
+        sum_win_pct = result['win_pct'].sum()
+        extra_content += '平均盈利比率：' + str(sum_win_pct / len(result)) + '\n'
+        FileOutput.csv_output(None, result, 'quick_down_stock_verify.csv', extra_content=extra_content)
+
+
+def line_k_verify(data_center):
+    """
+    长下影线以及十字星线的买入，在连续几天的下跌之后
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(
+        columns=('ts_code', 'name', 'buy_price', 'sold_price', 'buy_date', 'sold_date', 'win_pct'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty:
+            continue_down_days = 0
+            base_data.loc[:, 'sold_date'] = base_data['trade_date'].shift(-2)
+            base_data.loc[:, 'sold_price'] = base_data['close'].shift(-2)
+            base_data.loc[:, 'win_pct'] = (base_data['sold_price'] - base_data['close']) / base_data['close']
+            for j in range(len(base_data)):
+                if base_data.at[j, 'close'] < base_data.at[j, 'open']:
+                    continue_down_days += 1
+                line_pct = 1 - ((base_data.at[j, 'close'] - base_data.at[j, 'open']) / \
+                                (base_data.at[j, 'close'] - base_data.at[j, 'low']))
+                if base_data.at[j, 'high'] == base_data.at[j, 'close'] and line_pct > 0.5 and continue_down_days >= 2:
+                    # 买入信号
+                    temp_dic = {
+                        'ts_code': stock_list[i][0],
+                        'name': stock_list[i][2],
+                        'buy_date': base_data.at[j, 'trade_date'],
+                        'buy_price': base_data.at[j, 'close'],
+                        'sold_date': base_data.at[j, 'sold_date'],
+                        'sold_price': base_data.at[j, 'sold_price'],
+                        'win_pct': base_data.at[j, 'win_pct']
+                    }
+                    result = result.append(temp_dic, ignore_index=True)
+                    continue_down_days = 0
+    if not result.empty:
+        result.loc[:, 'is_win'] = result['win_pct'] > 0
+        result.loc[:, 'is_win_10'] = result['win_pct'] > 0.1
+        result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+        result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+        win_rate = len(result[result['is_win']]) / len(result)
+        win_10_pct_rate = len(result[result['is_win_10']]) / len(result)
+        win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+        win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+        extra_content = '盈利比率：' + str(win_rate) + '\n'
+        extra_content += '盈利超10%比率：' + str(win_10_pct_rate) + '\n'
+        extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+        extra_content += '盈利超40%比率：' + str(win_40_pct_rate) + '\n'
+        # 统计一下平均的盈利百分比
+        sum_win_pct = result['win_pct'].sum()
+        extra_content += '平均盈利比率：' + str(sum_win_pct / len(result)) + '\n'
+        FileOutput.csv_output(None, result, 'down_shadow_k_line_buy01.csv', extra_content=extra_content)
