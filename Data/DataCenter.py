@@ -425,14 +425,15 @@ class DataCenter:
             self.__database.write_stock_info(result)
             time.sleep(1)
 
-    def init_redis_cache(self):
+    def init_redis_cache(self, end_date=None):
         """
         纯粹从数据库当中取出股票日交易信息和复权因子，并且计算后复权收盘价，写入到Redis缓存当中
         :return:
         """
         all_stock_list = self.fetch_stock_list()
         for i in range(len(all_stock_list)):
-            base_data = self.fetch_base_data_pure_database(stock_code=all_stock_list[i][0], begin_date='20160101')
+            base_data = self.fetch_base_data_pure_database(stock_code=all_stock_list[i][0], begin_date='20160101',
+                                                           end_date=end_date)
             if len(base_data) > 0:
                 base_data = base_data.sort_values(by=['trade_date'])
                 adj_factor = self.fetch_adj_factor_pure_database(all_stock_list[i][0],

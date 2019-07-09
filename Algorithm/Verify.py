@@ -1652,3 +1652,161 @@ def line_k_verify(data_center):
         sum_win_pct = result['win_pct'].sum()
         extra_content += '平均盈利比率：' + str(sum_win_pct / len(result)) + '\n'
         FileOutput.csv_output(None, result, 'down_shadow_k_line_buy01.csv', extra_content=extra_content)
+
+
+def find_quick_up_stock_buy_down_sold_verify(data_center, period=5, up_pct_min=0.10, up_pct_max=0.45, need_stable=False,
+                                             is_red=False):
+    """
+    查找快速上涨的股票，然后满足下列条件的话就买入，买入之后一直持有，如果某一天是下跌了的话，那么就以收盘价卖出，看如何？
+    1. :param period个交易日之内上涨在:param up_pct_min到:param up_pct_max之间的股票，如果need_stable为True，买入的话就是period天之后的一天
+    2. 如果:param need_stable为False，则:param period个交易日之内上涨大于:param up_pct_min
+    :param is_red:
+    :param need_stable:
+    :param up_pct_max:
+    :param up_pct_min:
+    :param period:
+    :param data_center:find_quick_up_stock_buy_down_sold_verify
+    :return:
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_price', 'sold_price', 'buy_date', 'sold_date', 'win_pct',
+                                       'days_delta', 'is_win_10'))
+    stock_list = data_center.fetch_stock_list()
+    for k in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[k][0],
+                                                              begin_date='20160101')
+        if not base_data.empty and len(base_data) > period:
+            period_day_before = base_data['close'].shift(period)
+            base_data.loc[:, 'period_day_pct'] = (base_data['close'] - period_day_before) / period_day_before
+
+            # 获取OK的天数
+            ok_index = base_data['period_day_pct'] > up_pct_min
+
+            # 如果需要稳步上涨的话~s
+            if need_stable:
+                for i in range(1, period + 1):
+                    base_data.loc[:, str(i) + 'pct_chg'] = base_data['pct_chg'].shift(i)
+
+                stable_index = base_data['1pct_chg']
+                for i in range(2, period + 1):
+                    stable_index = (base_data[str(i) + 'pct_chg'] > 0) & stable_index
+                ok_index = ok_index & stable_index
+            if is_red:
+                for i in range(1, period + 1):
+                    base_data.loc[:, str(i) + 'close'] = base_data['close'].shift(i)
+                    base_data.loc[:, str(i) + 'open'] = base_data['open'].shift(i)
+                    base_data.loc[:, str(i) + 'red'] = base_data[str(i) + 'close'] > base_data[str(i) + 'open']
+
+                red_index = base_data['1red']
+                for i in range(2, period + 1):
+                    red_index = base_data[str(i) + 'red'] & red_index
+                ok_index = ok_index & red_index
+            next_buy_index = 0
+            for i in range(len(ok_index)):
+                if ok_index[i]:
+                    if i <= next_buy_index:
+                        continue
+                    # 买入信号
+                    temp_dic = {
+                        'ts_code': stock_list[k][0],
+                        'name': stock_list[k][2],
+                        'buy_date': base_data.at[i, 'trade_date'],
+                        'buy_price': base_data.at[i, 'close']
+                    }
+                    result = result.append(temp_dic, ignore_index=True);
+                    for j in range(i + 1, len(base_data)):
+                        if base_data.at[j, 'close'] < base_data.at[j, 'open']:
+                            next_buy_index = j
+                            # 卖出信号
+                            result.loc[len(result) - 1:len(result) - 1, 'sold_date'] = str(base_data.at[j, 'trade_date'])
+                            result.at[len(result) - 1, 'sold_price'] = base_data.at[j, 'close']
+                            result.at[len(result) - 1, 'win_pct'] = (base_data.at[j, 'close'] - result.at[len(result) - 1, 'buy_price']) / result.at[len(result) - 1, 'buy_price']
+                            # 忘了补个break，结果导致了貌似一堆的错误数据
+                            break
+                            # TODO -- 补全天数差别
+    result.loc[:, 'is_win'] = result['win_pct'] > 0
+    result.loc[:, 'is_win_10'] = result['win_pct'] > 0.1
+    result.loc[:, 'is_win_20'] = result['win_pct'] > 0.2
+    result.loc[:, 'is_win_40'] = result['win_pct'] > 0.4
+    win_rate = len(result[result['is_win']]) / len(result)
+    win_10_pct_rate = len(result[result['is_win_10']]) / len(result)
+    win_20_pct_rate = len(result[result['is_win_20']]) / len(result)
+    win_40_pct_rate = len(result[result['is_win_40']]) / len(result)
+    extra_content = '盈利比率：' + str(win_rate) + '\n'
+    extra_content += '盈利超10%比率：' + str(win_10_pct_rate) + '\n'
+    extra_content += '盈利超20%比率：' + str(win_20_pct_rate) + '\n'
+    extra_content += '盈利超40%比率：' + str(win_40_pct_rate) + '\n'
+    # 统计一下平均的盈利百分比
+    sum_win_pct = result['win_pct'].sum()
+    extra_content += '平均盈利比率：' + str(sum_win_pct / len(result)) + '\n'
+    file_name = 'quick_up_stock_verify'
+    file_name = file_name + '_stable' if need_stable else file_name
+    now_time = datetime.datetime.now()
+    now_time_str = now_time.strftime('%Y%m%d')
+    file_name += '_' + now_time_str + "_" + str(period)
+    file_name += '_stable' if need_stable else ''
+    file_name += '_allred' if is_red else ''
+    file_name += '.csv'
+    FileOutput.csv_output(None, result, file_name, spe_dir_name='quick_up_stock', extra_content=extra_content)
+
+
+def v_wave_stock_buy_verify(data_center, down_days=4, down_must_green=False):
+    """
+    V型反转股票的校验
+    :param down_days 连续下跌多少天后反转算是OK
+    :param down_must_green 是否下跌的过程当中必须是收盘价低于开盘价
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'buy_price', 'buy_date', 'sold_price', 'sold_date', 'win_pct',
+                                       'continue_days'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date='20160101')
+        if not base_data.empty and len(base_data) > (down_days + 1):
+            has_stock = False   # 是否有持仓
+            for k in range(down_days + 1, len(base_data) - 1):
+                # 判定是否需要卖出
+                if base_data.at[k, 'pct_chg'] < 0 and has_stock:
+                    # 不能当日买进当日卖出
+                    if base_data.at[k, 'trade_date'] != result.at[len(result) - 1, 'buy_date']:
+                        sold_date = base_data.at[k, 'trade_date']
+                        sold_price = base_data.at[k, 'close']
+                        buy_price = result.at[len(result) - 1, 'buy_price']
+                        buy_date = result.at[len(result) - 1, 'buy_date']
+                        win_pct = (sold_price - buy_price) / buy_price
+                        start_date = datetime.date(int(buy_date[0:4]), int(buy_date[4:6]), int(buy_date[6:8]))
+                        end_date = datetime.date(int(sold_date[0:4]), int(sold_date[4:6]), int(sold_date[6:8]))
+                        result.at[len(result) - 1, 'continue_days'] = (end_date - start_date).days
+                        result.at[len(result) - 1, 'sold_date'] = sold_date
+                        result.at[len(result) - 1, 'sold_price'] = sold_price
+                        result.at[len(result) - 1, 'win_pct'] = win_pct
+                is_continue_down = False
+                for j in range(1, down_days + 1):
+                    if base_data.at[k - j, 'pct_chg'] < 0:
+                        if down_must_green:
+                            is_continue_down = base_data.at[k - j, 'close'] < base_data.at[k - j, 'open']
+                        else:
+                            is_continue_down = True
+                    else:
+                        is_continue_down = False
+                        break
+                if is_continue_down:
+                    # 连续:param down_days天下跌，然后下一天的开盘价比前一天收盘价高，并且上涨了
+                    if base_data.at[k, 'open'] > base_data.at[k - 1, 'close'] \
+                            and base_data.at[k, 'pct_chg'] > 0:
+                        has_stock = True
+                        temp_dict = {
+                            'ts_code': stock_list[i][0],
+                            'name': stock_list[i][2],
+                            'buy_price': base_data.at[k + 1, 'open'],
+                            'buy_date': base_data.at[k + 1, 'trade_date'],
+                        }
+                        result = result.append(temp_dict, ignore_index=True)
+    if not result.empty:
+        file_name = 'v_wave_buy_verify'
+        now_time = datetime.datetime.now()
+        now_time_str = now_time.strftime('%Y%m%d')
+        file_name += '_' + now_time_str
+        file_name += '.csv'
+        FileOutput.csv_output(None, result, file_name)
+    else:
+        print("no such stock!")

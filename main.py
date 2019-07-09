@@ -64,7 +64,7 @@ def fetch_day_index_data(stock_code, begin_date=None, end_date=None):
 
 def fetch_all_daily_info(trade_date=None, until_now=False):
     """
-    按天获取所有的股票的信息，如果是@param until_now为True的话，那么一直获取到当天为止
+    按天获取所有的股票的信息，如果是@pfind_quick_up_stockaram until_now为True的话，那么一直获取到当天为止
     :param stock_code:
     :param trade_date:
     :param until_now:
@@ -114,7 +114,7 @@ def fetch_base_info_daily(data_cen, trade_date):
 
 # data_center.init_base_info()
 # data_center.init_redis_cache()
-# fetch_base_info_daily(data_center, "20190409")
+# fetch_base_info_daily(data_center, "20190708")
 # data_center.init_redis_cache()find_max_start_max_down_with_buy
 # fetch_base_info_daily(data_center, '20190215')
 # result = Calculator.get_his_max_up_pct(data_center)
@@ -122,7 +122,7 @@ def fetch_base_info_daily(data_cen, trade_date):
 # result = Calculator.get_max_up_stock(data_center, up_days=2)
 # FileOutput.csv_output(None, result, 'two_up_stock_20190320.csv')
 # , start_days='20190315', end_days='20190331'
-# Calculator.find_max_start_max_down_with_buy(data_center, start_days='20190331')
+# Calculator.find_max_start_max_down_with_buy(data_center, start_days='20190410')
 # Verify.n_max_up_buy_verify(data_center)
 # result = Verify.three_max_stock(data_center)
 # FileOutput.csv_output(None, result, 'three_max_up.csv')
@@ -155,14 +155,32 @@ def fetch_base_info_daily(data_cen, trade_date):
 # Verify.check_k_buy(data_center)
 
 # N天阴线之后买入的验证
-# Verify.n_green_days_two_red_buy_next_sold(data_center, '000711.SZ', down_days=3)
+# Verify.n_green_days_two_red_buy_next_sold(data_center, '000711.SZ', down_days=4)
 # FileOutput.csv_output(None, result[0], 'green_3_buy_verify_000711SZ.csv', extra_content=result[1])
 
 # 突然暴跌的股票
-Calculator.find_quick_down_stock(data_center)
+# Calculator.find_quick_down_stock(data_center)
 
-# 突然暴涨的股票
-# Calculator.find_quick_up_stock(data_center, True)
+# 开启上涨模式的股票
+# Calculator.find_quick_up_stock(data_center, period=3, up_pct_min=0.07, need_stable=True, is_red=True)
+
+# V型反转的股票查找
+# Calculator.find_v_wave(data_center, up_must_high=False, down_days=4, allow_s_up=True)
+
+# 弱
+
+# 两日涨停验证V型反转的股票查找:亦即最后一天的开盘价没有高于上一天的收盘价
+# # Calculator.find_v_wave(data_center)
+#
+# # V型反转买入验证
+# # Verify.v_wave_stock_buy_verify(data_center, down_days=4)
+# Calculator.find_max_start_max_down_with_buy(data_center, '20190515')
+
+# 开启上涨模式股票买入验证
+# Verify.find_quick_up_stock_buy_down_sold_verify(data_center, period=4, up_pct_min=0.07, need_stable=True, is_red=True)
+
+# 历史期间上涨的股票
+# Calculator.find_target_up_pct_stock(data_center, '20180101', '20181231', 0.5)
 
 # 查找成功连续N天涨停的股票，查看他们的共性
 # Calculator.find_continue_max_up_stock(data_center)
@@ -172,6 +190,12 @@ Calculator.find_quick_down_stock(data_center)
 
 # 连续两天或者更多天下跌后，通过下影线买入看下
 # Verify.line_k_verify(data_center)
+
+# 下跌然后开启上涨势头的股票的买入分析
+# Calculator.find_down_then_up(data_center)
+
+# 下跌然后开始上涨势头的股票，为次日买入做准备
+# Calculator.find_down_then_up_for_buy(data_center)
 
 # 搜寻MA20下的股票
 # Verify.find_stock_by_ma20(data_center)
@@ -183,8 +207,16 @@ Calculator.find_quick_down_stock(data_center)
 # result = Calculator.no_max_continue_down_count(data_center)
 # FileOutput.csv_output(None, result, "down_up_das_count.csv")
 
+# 寻找已经上涨的股票
 # result = Calculator.find_has_up_some(data_center)
-# FileOutput.csv_output(None, result, 'has_up_10_pct_20190307.csv')
+# FileOutput.csv_output(None, result, 'has_up_10_pct_20190702.csv')
+
+# 寻找连续上涨的
+Calculator.find_continue_up_stock(data_center, up_days=4)
+
+# 寻找已经上涨的股票（特殊设定）
+# result = Calculator.find_has_up_some(data_center, check_days=5, target_up_pct=0.1)
+# FileOutput.csv_output(None, result, 'has_up_10_pct_20190626_5_10.csv')
 
 # data_center.fetch_all_daily_info_until_now('20190119')
 # data_center.init_redis_cache()
