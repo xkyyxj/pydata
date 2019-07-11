@@ -114,7 +114,7 @@ def fetch_base_info_daily(data_cen, trade_date):
 
 # data_center.init_base_info()
 # data_center.init_redis_cache()
-# fetch_base_info_daily(data_center, "20190708")
+# fetch_base_info_daily(data_center, "20190710")
 # data_center.init_redis_cache()find_max_start_max_down_with_buy
 # fetch_base_info_daily(data_center, '20190215')
 # result = Calculator.get_his_max_up_pct(data_center)
@@ -165,7 +165,7 @@ def fetch_base_info_daily(data_cen, trade_date):
 # Calculator.find_quick_up_stock(data_center, period=3, up_pct_min=0.07, need_stable=True, is_red=True)
 
 # V型反转的股票查找
-# Calculator.find_v_wave(data_center, up_must_high=False, down_days=4, allow_s_up=True)
+Calculator.find_v_wave(data_center, up_must_high=False, down_days=4, allow_s_up=True)
 
 # 弱
 
@@ -212,7 +212,7 @@ def fetch_base_info_daily(data_cen, trade_date):
 # FileOutput.csv_output(None, result, 'has_up_10_pct_20190702.csv')
 
 # 寻找连续上涨的
-Calculator.find_continue_up_stock(data_center, up_days=4)
+# Calculator.find_continue_up_stock(data_center, up_days=4)
 
 # 寻找已经上涨的股票（特殊设定）
 # result = Calculator.find_has_up_some(data_center, check_days=5, target_up_pct=0.1)
