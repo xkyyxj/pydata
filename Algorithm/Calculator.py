@@ -1404,3 +1404,82 @@ def find_continue_up_stock(data_center, up_days=4):
         FileOutput.csv_output(None, high_than_s_max_rst, file_name)
     else:
         print("no such stock!")
+
+
+def find_history_down_stock(data_center, begin_date='20191001'):
+    """
+    寻找历史低值区间的股票，从:param begin_date开始
+    :param data_center: 数据中心
+    :param begin_date: 开始日期
+    """
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'curr_price', 'up_pct'))
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date)
+        if not base_data.empty:
+            close_price = base_data.loc[:, 'close']
+            min_price = close_price.min()
+            curr_price = base_data.at[len(base_data) - 1, 'close']
+            up_pct = (curr_price - min_price) / min_price
+            if up_pct < 0.05:
+                temp_dict = {
+                    'ts_code': stock_list[i][0],
+                    'name': stock_list[i][2],
+                    'curr_price': curr_price,
+                    'up_pct': up_pct
+                }
+                result = result.append(temp_dict, ignore_index=True)
+    if not result.empty:
+        file_name = "history_down_"
+        now_time = datetime.datetime.now()
+        now_time_str = now_time.strftime('%Y%m%d')
+        file_name += '_' + now_time_str
+        file_name += '.csv'
+        FileOutput.csv_output(None, result, file_name)
+
+
+def find_period_max_win(data_center, period, end_date_str=None):
+    """
+    从:param end_date到:param period天之前，期间之内盈利由多到少的排名
+    :param end_date_str:
+    :param data_center:
+    :param period:
+    :return:
+    """
+    # 没设置最后日期的话，确定为程序执行当天
+    if end_date_str is None:
+        end_date_str = datetime.date.today()
+        end_date_str = end_date_str.strftime("%Y%m%d")
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'curr_price', 'max_win_pct', 'last_win_pct'))
+    stock_list = data_center.fetch_stock_list()
+    end_date = datetime.date(int(end_date_str[0:4]), int(end_date_str[4:6]), int(end_date_str[6:8]))
+    begin_date = end_date - datetime.timedelta(days=period)
+    begin_date_str = begin_date.strftime("%Y%m%d")
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date_str, end_date=end_date_str)
+        if not base_data.empty:
+            temp_dict = {
+                'ts_code': stock_list[i][0],
+                "name": stock_list[i][2]
+            }
+            price_series = base_data.loc[:, 'close']
+            min_price = price_series.min()
+            min_first_index = price_series.idxmin()
+            temp_series = price_series.loc[lambda x: x.index > min_first_index]
+            max_price = temp_series.max()
+            last_day_price = base_data.at[len(base_data) - 1, 'close']
+            max_win_pct = (max_price - min_price) / min_price
+            last_win_pct = (last_day_price - min_price) / min_price
+            temp_dict['curr_price'] = last_day_price
+            temp_dict['max_win_pct'] = max_win_pct
+            temp_dict['last_win_pct'] = last_win_pct
+            result = result.append(temp_dict, ignore_index=True)
+    if not result.empty:
+        file_name = "period_max_win_"
+        now_time = datetime.datetime.now()
+        now_time_str = now_time.strftime('%Y%m%d')
+        file_name += '_' + now_time_str
+        file_name += '.csv'
+        FileOutput.csv_output(None, result, file_name)

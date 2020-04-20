@@ -35,7 +35,8 @@ class DataCenter:
             return
         redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
         pipe_line = redis_conn.pipeline(transaction=False)
-        all_value = base_info.to_msgpack()
+        # all_value = base_info.to_msgpack() # old version of pandas
+        all_value = base_info.to_json(orient='table')
 
         # 构建缓存的key值
         key = base_info.at[0, 'ts_code']
@@ -52,7 +53,8 @@ class DataCenter:
         value = redis_conn.get(stock_code)
         ret_value = pandas.DataFrame()
         if value is not None and len(value) > 0:
-            ret_value = pandas.read_msgpack(value)
+            # ret_value = pandas.read_msgpack(value) # old version of pandas
+            ret_value = pandas.read_json(value, orient='table')
         return ret_value
 
     def write_one_day_info_to_redis(self, base_info, add_type='after'):
@@ -432,7 +434,7 @@ class DataCenter:
         """
         all_stock_list = self.fetch_stock_list()
         for i in range(len(all_stock_list)):
-            base_data = self.fetch_base_data_pure_database(stock_code=all_stock_list[i][0], begin_date='20160101',
+            base_data = self.fetch_base_data_pure_database(stock_code=all_stock_list[i][0], begin_date='20180101',
                                                            end_date=end_date)
             if len(base_data) > 0:
                 base_data = base_data.sort_values(by=['trade_date'])

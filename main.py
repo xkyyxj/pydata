@@ -18,6 +18,13 @@ import redis
 import json
 import DailyUtils.FindLowStock as FindLowStock
 
+# test pandas to_json and read_json
+# d = {'col1': [1, 2], 'col2': [3, 4]}
+# data_frame1 = pandas.DataFrame(data=d)
+#
+# json1 = data_frame1.to_json(orient='table')
+# data_frame2 = pandas.read_json(json1, orient='table');
+
 data_center = Data.DataCenter.DataCenter()
 
 # main程序
@@ -114,7 +121,7 @@ def fetch_base_info_daily(data_cen, trade_date):
 
 # data_center.init_base_info()
 # data_center.init_redis_cache()
-# fetch_base_info_daily(data_center, "20190710")
+# fetch_base_info_daily(data_center, "20200408")
 # data_center.init_redis_cache()find_max_start_max_down_with_buy
 # fetch_base_info_daily(data_center, '20190215')
 # result = Calculator.get_his_max_up_pct(data_center)
@@ -165,9 +172,13 @@ def fetch_base_info_daily(data_cen, trade_date):
 # Calculator.find_quick_up_stock(data_center, period=3, up_pct_min=0.07, need_stable=True, is_red=True)
 
 # V型反转的股票查找
-Calculator.find_v_wave(data_center, up_must_high=False, down_days=4, allow_s_up=True)
+# Calculator.find_v_wave(data_center, up_must_high=False, down_days=4, allow_s_up=True)
 
-# 弱
+# 历史低值区间股票
+# Calculator.find_history_down_stock(data_center)
+
+#  区间之内获利
+Calculator.find_period_max_win(data_center, 60)
 
 # 两日涨停验证V型反转的股票查找:亦即最后一天的开盘价没有高于上一天的收盘价
 # # Calculator.find_v_wave(data_center)
