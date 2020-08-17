@@ -8,7 +8,6 @@ import numpy as np
 import pandas
 from sqlalchemy import create_engine
 
-
 class MySQLDB:
     def __init__(self):
         self.__con = pymysql.connect("localhost", "root", "123", "stock")
@@ -29,6 +28,19 @@ class MySQLDB:
         :return:
         """
         query_sql = "select * from stock_base_info where ts_code=%s and trade_date >= %s and trade_date <= %s"
+        results = pandas.read_sql(query_sql, con=self.__engine, params=(code, start_date, end_date))
+
+        # 下面的方法存在问题：对于数字类型来说，并不能够正常转换
+        # self.__cursor.execute(query_sql, (code, start_date, end_date))
+        # results = np.array(self.__cursor.fetchall())
+        return results
+
+    def fetch_index_daily_info(self, code, start_date="20180101", end_date="20181231"):
+        """
+        从数据库当中获取指数的每日交易的数据
+        :return:
+        """
+        query_sql = "select * from stock_index_baseinfo where ts_code=%s and trade_date >= %s and trade_date <= %s"
         results = pandas.read_sql(query_sql, con=self.__engine, params=(code, start_date, end_date))
 
         # 下面的方法存在问题：对于数字类型来说，并不能够正常转换
@@ -145,6 +157,13 @@ class MySQLDB:
         result = self.__cursor.fetchall()
         return len(result) > 0 and result[0][0]
 
+    def is_exist_index_base_data(self, stock_code, date):
+        query_sql = "select trade_date from stock_index_baseinfo where ts_code=%s and trade_date like %s " \
+                    "order by trade_date limit 1"
+        self.__cursor.execute(query_sql, (stock_code, date + "%"))
+        result = self.__cursor.fetchall()
+        return len(result) > 0 and result[0][0]
+
     def is_exist_adj_factor(self, stock_code, date):
         query_sql = "select trade_date from adj_factor where ts_code=%s and trade_date like %s " \
                     "order by trade_date limit 1"
@@ -153,9 +172,26 @@ class MySQLDB:
         return len(result) > 0 and result[0][0]
 
     def write_index_list(self, index_list):
+        """
+        将指数的基本信息写入到数据库当中
+        :param index_list:
+        :return:
+        """
         if len(index_list) > 0:
             delete_sql = "delete from stock_index where market like %s"
             self.__cursor.execute(delete_sql, (index_list.at[0, 'market'],))
             self.__con.commit()
             index_list.to_sql('stock_index', self.__engine, if_exists='append', index=False)
+
+    def write_index_daily_info(self, daily_info):
+        """
+        将指数的日线信息写入到数据库当中
+        :param daily_info:
+        :return:
+        """
+        daily_info.to_sql('stock_index_baseinfo', self.__engine, if_exists='append', index=False)
+
+    def delete_stock_list(self):
+        None
+
 

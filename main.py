@@ -119,9 +119,10 @@ def fetch_base_info_daily(data_cen, trade_date):
     data_cen.fetch_all_daily_info_until_now(trade_date)
 
 
+# data_center.fetch_index_data('399001.SZ', '20000101', '20200515')
 # data_center.init_base_info()
 # data_center.init_redis_cache()
-# fetch_base_info_daily(data_center, "20200408")
+fetch_base_info_daily(data_center, "20200811")
 # data_center.init_redis_cache()find_max_start_max_down_with_buy
 # fetch_base_info_daily(data_center, '20190215')
 # result = Calculator.get_his_max_up_pct(data_center)
@@ -175,10 +176,19 @@ def fetch_base_info_daily(data_cen, trade_date):
 # Calculator.find_v_wave(data_center, up_must_high=False, down_days=4, allow_s_up=True)
 
 # 历史低值区间股票
-# Calculator.find_history_down_stock(data_center)
+Calculator.find_history_down_stock(data_center, begin_date='20190101')
 
-#  区间之内获利
-Calculator.find_period_max_win(data_center, 60)
+# 区间之内获利
+# Calculator.find_period_max_win(data_center, 60)
+
+# 下跌然后上涨的股票
+# Calculator.find_down_then_up_stock(data_center)
+
+# 长期横盘或者微弱下跌然后开始上涨的股票
+# Calculator.find_long_flow_or_down_then_up(data_center)
+
+# 计算标准差
+# Calculator.order_stock_by_stdev(data_center)
 
 # 两日涨停验证V型反转的股票查找:亦即最后一天的开盘价没有高于上一天的收盘价
 # # Calculator.find_v_wave(data_center)

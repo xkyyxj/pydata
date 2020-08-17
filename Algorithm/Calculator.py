@@ -4,6 +4,7 @@
 """
 import datetime
 import pandas
+import numpy as np
 import Output.FileOutput as FileOutput
 
 
@@ -1409,10 +1410,11 @@ def find_continue_up_stock(data_center, up_days=4):
 def find_history_down_stock(data_center, begin_date='20191001'):
     """
     寻找历史低值区间的股票，从:param begin_date开始
+    亦即最新的价格同该区间内的最低价格相比，上涨幅度不超过5%
     :param data_center: 数据中心
     :param begin_date: 开始日期
     """
-    result = pandas.DataFrame(columns=('ts_code', 'name', 'curr_price', 'up_pct'))
+    result = pandas.DataFrame(columns=('ts_code', 'name', 'industry', 'curr_price', 'up_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
         base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
@@ -1426,6 +1428,7 @@ def find_history_down_stock(data_center, begin_date='20191001'):
                 temp_dict = {
                     'ts_code': stock_list[i][0],
                     'name': stock_list[i][2],
+                    'industry': stock_list[i][4],
                     'curr_price': curr_price,
                     'up_pct': up_pct
                 }
@@ -1439,6 +1442,122 @@ def find_history_down_stock(data_center, begin_date='20191001'):
         FileOutput.csv_output(None, result, file_name)
 
 
+# 查找类-----------------important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!----------------------
+# TODO -- 修正一下，第一个版本，效果似乎不怎么样
+def find_down_then_up_stock(data_center, period=60, up_days=3, max_up_pct=0.1):
+    """
+    查找下跌然后开始上涨流程的股票
+    下降，然后开始连续:param up_days天之内上涨的股票，并且在该期间之内的最大涨幅不超过:param max_up_pct代表的百分比
+    其中，上涨的含义就是，后一天的收盘价比前一天的收盘价高
+    附加条件：1. :param period期间之内，股票达到了最近的最低点
+    :param period:
+    :param max_up_pct:
+    :param up_days:
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=(
+        'ts_code', 'name', 'curr_price', 'min_price', 'already_up_pct', 'price_delta'))
+    stock_list = data_center.fetch_stock_list()
+    end_date = datetime.date.today()
+    end_date_str = end_date.strftime("%Y%m%d")
+    begin_date = end_date - datetime.timedelta(days=period)
+    begin_date_str = begin_date.strftime("%Y%m%d")
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date_str, end_date=end_date_str)
+        if not base_data.empty:
+            price_series = base_data.loc[:, 'close']
+            min_price = price_series.min()
+            min_first_index = price_series.idxmin()
+            last_day_price = base_data.at[len(base_data) - 1, 'close']
+            curr_win_pct = (last_day_price - min_price) / min_price
+            # 上涨幅度超过了最高的上涨幅度，所以不能入选
+            if curr_win_pct > max_up_pct:
+                continue
+            # 判定是否是连续:param up_days天内收盘价大于前一天的收盘价
+            is_higher_than_last_day = True
+            last_index = len(base_data) - 1
+            first_index = last_index - up_days - 1 if last_index - up_days - 1 > 0 else 1
+            for index in range(first_index, last_index + 1):
+                is_higher_than_last_day &= base_data.at[index - 1, 'close'] < base_data.at[index, 'close']
+            if is_higher_than_last_day:
+                temp_dict = {
+                    'ts_code': stock_list[i][0],
+                    "name": stock_list[i][2],
+                    "curr_price": last_day_price,
+                    "min_price": min_price,
+                    "already_up_pct": curr_win_pct,
+                    "price_delta": last_day_price - min_price
+                }
+                result = result.append(temp_dict, ignore_index=True)
+    if not result.empty:
+        file_name = "down_then_up_stock_"
+        now_time = datetime.datetime.now()
+        now_time_str = now_time.strftime('%Y%m%d')
+        file_name += '_' + now_time_str + '_'
+        file_name += str(period)
+        file_name += '.csv'
+        FileOutput.csv_output(None, result, file_name)
+
+
+# 查找类-----------------important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!----------------------
+def find_long_flow_or_down_then_up(data_center, flow_period=30, max_wave_pct=0.05, exceed_count=10):
+    """
+    查找长期横盘或者长期微弱下跌，期间上涨幅度最大允许幅度:param max_wave_pct，可以有超过该幅度的上涨， 但是超过该幅度的天数不超过
+    :param exceed_count天
+    ，然后开始上涨的股票
+    :param exceed_count: 上涨超过:param max_wave_pct的最大允许天数
+    :param max_wave_pct: 相隔两天的最大波动幅度（仅限上涨）
+    :param flow_period: 横盘时间
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=(
+        'ts_code', 'name', 'curr_price', 'min_price', 'already_up_pct'))
+    stock_list = data_center.fetch_stock_list()
+    end_date = datetime.date.today()
+    end_date_str = end_date.strftime("%Y%m%d")
+    begin_date = end_date - datetime.timedelta(days=flow_period + 10)
+    begin_date_str = begin_date.strftime("%Y%m%d")
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date_str, end_date=end_date_str)
+        if not base_data.empty:
+            continue_up = True
+            curr_exceed_count = 0
+            first_close = base_data.at[0, 'close']
+            for j in range(len(base_data) - 5):  # 预留五天的时间用于上涨，看着五天内是否突破开始上涨了
+                if float(base_data.at[j, 'change']) > max_wave_pct * 100:
+                    curr_exceed_count += 1
+                if (base_data.at[j, 'close'] - first_close) / first_close > 0.15:
+                    # 如果这个不是横盘或者微弱的上涨，那么就pass掉，中间有过大幅上涨
+                    continue_up = False # 借用这一条语句推出循环
+                    break
+            for j in range(len(base_data) - 5, len(base_data)):
+                continue_up &= base_data.at[j, 'change'] > 0
+            if continue_up:
+                price_series = base_data.loc[:, 'close']
+                min_price = price_series.min()
+                curr_price = base_data.at[len(base_data) - 1, 'close']
+                temp_dict = {
+                    'ts_code': stock_list[i][0],
+                    "name": stock_list[i][2],
+                    "curr_price": curr_price,
+                    "min_price": min_price,
+                    "already_up_pct": (curr_price - min_price) / min_price
+                }
+                result = result.append(temp_dict, ignore_index=True)
+    if not result.empty:
+        file_name = "down_or_flow_then_up"
+        now_time = datetime.datetime.now()
+        now_time_str = now_time.strftime('%Y%m%d')
+        file_name += '_' + now_time_str + '_'
+        file_name += '.csv'
+        FileOutput.csv_output(None, result, file_name)
+
+
+# 统计类-----------------important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!----------------------
 def find_period_max_win(data_center, period, end_date_str=None):
     """
     从:param end_date到:param period天之前，期间之内盈利由多到少的排名
@@ -1451,7 +1570,8 @@ def find_period_max_win(data_center, period, end_date_str=None):
     if end_date_str is None:
         end_date_str = datetime.date.today()
         end_date_str = end_date_str.strftime("%Y%m%d")
-    result = pandas.DataFrame(columns=('ts_code', 'name', 'curr_price', 'max_win_pct', 'last_win_pct'))
+    result = pandas.DataFrame(columns=(
+        'ts_code', 'name', 'curr_price', 'max_win_pct', 'last_win_pct', 'min_price', 'last_day_price', 'price_delta'))
     stock_list = data_center.fetch_stock_list()
     end_date = datetime.date(int(end_date_str[0:4]), int(end_date_str[4:6]), int(end_date_str[6:8]))
     begin_date = end_date - datetime.timedelta(days=period)
@@ -1475,11 +1595,59 @@ def find_period_max_win(data_center, period, end_date_str=None):
             temp_dict['curr_price'] = last_day_price
             temp_dict['max_win_pct'] = max_win_pct
             temp_dict['last_win_pct'] = last_win_pct
+            temp_dict['min_price'] = min_price
+            temp_dict['last_day_price'] = last_day_price
+            temp_dict['price_delta'] = last_day_price - min_price
             result = result.append(temp_dict, ignore_index=True)
     if not result.empty:
         file_name = "period_max_win_"
         now_time = datetime.datetime.now()
         now_time_str = now_time.strftime('%Y%m%d')
-        file_name += '_' + now_time_str
+        file_name += '_' + now_time_str + '_'
+        file_name += str(period)
+        file_name += '.csv'
+        FileOutput.csv_output(None, result, file_name)
+
+
+# 统计类-----------------important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!----------------------
+def order_stock_by_stdev(data_center, period=30):
+    """
+    计算最近几天的标准差，然后输出，找到波动率大的股票，看下能否做短期套利
+    :param period: 计算期间
+    :param data_center:
+    :return:
+    """
+    result = pandas.DataFrame(columns=(
+        'ts_code', 'name', 'curr_price', 'last_win_pct', 'stdev'))
+    stock_list = data_center.fetch_stock_list()
+    end_date = datetime.date.today()
+    end_date_str = end_date.strftime("%Y%m%d")
+    begin_date = end_date - datetime.timedelta(days=period)
+    begin_date_str = begin_date.strftime("%Y%m%d")
+    for i in range(len(stock_list)):
+        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
+                                                              begin_date=begin_date_str, end_date=end_date_str)
+        if not base_data.empty:
+            change_series = base_data.loc[:, 'change']
+            close_series = base_data.loc[:, 'close']
+            min_price = close_series.min()
+            last_price = base_data.at[len(base_data) - 1, 'close']
+            stdev = np.std(change_series, ddof=1)
+            last_win_pct = (last_price - min_price) / min_price
+            temp_dict = {
+                'ts_code': stock_list[i][0],
+                "name": stock_list[i][2],
+                "curr_price": last_price,
+                "min_price": min_price,
+                "last_win_pct": last_win_pct,
+                "stdev": stdev
+            }
+            result = result.append(temp_dict, ignore_index=True)
+    if not result.empty:
+        file_name = "stdev_order_"
+        now_time = datetime.datetime.now()
+        now_time_str = now_time.strftime('%Y%m%d')
+        file_name += '_' + now_time_str + '_'
+        file_name += str(period)
         file_name += '.csv'
         FileOutput.csv_output(None, result, file_name)

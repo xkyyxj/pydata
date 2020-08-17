@@ -153,7 +153,7 @@ class DataCenter:
         """
         local_data = self.get_base_info_from_redis(index_code, begin_date, end_date)
         if local_data.empty:
-            local_data = self.__database.fetch_daily_info(index_code, begin_date, end_date)
+            local_data = self.__database.fetch_index_daily_info(index_code, begin_date, end_date)
 
         if local_data.size == 0:
             # 每当获取数据的时候，从tushare上直接获取整年的数据
@@ -162,7 +162,7 @@ class DataCenter:
             temp_end_date = datetime.date(int(end_date[0:4]), 12, 31)
             temp_end_date = temp_end_date.strftime("%Y%m%d")
             ret_value = self.__datapull.fetch_stock_index_info(index_code, temp_begin_date, temp_end_date)
-            self.__database.write_stock_info(ret_value)
+            self.__database.write_index_daily_info(ret_value)
             self.write_base_info_to_redis(index_code, ret_value)
         else:
             ret_value = local_data
@@ -178,7 +178,7 @@ class DataCenter:
 
             # 同时查看下是不是数据库当中已经有相关年份的数据了
             # 可能存在一种情况：要求的日期正好该只股票停牌，但是该年份的数据已经写入到数据库当中了
-            last_date = self.__database.is_exist_base_data(index_code, end_date[0:4])
+            last_date = self.__database.is_exist_index_base_data(index_code, end_date[0:4])
             is_exist = last_date and int(last_date[6:8]) > 2
             if temp_date < end_date and not is_exist:
                 if is_last_year:
@@ -193,7 +193,7 @@ class DataCenter:
                     temp_end_date = datetime.date(int(end_date[0:4]), 12, 31)
                     temp_end_date = temp_end_date.strftime("%Y%m%d")
                 after_data = self.__datapull.fetch_stock_index_info(index_code, temp_begin_date, temp_end_date)
-                self.__database.write_stock_info(after_data)
+                self.__database.write_index_daily_info(after_data)
                 after_data = after_data[after_data['trade_date'] <= end_date]
                 ret_value = ret_value.merge(after_data, how="outer")
                 self.write_base_info_to_redis(index_code, after_data)
@@ -204,12 +204,12 @@ class DataCenter:
             need_date -= datetime.timedelta(days=1)
             need_date = need_date.strftime("%Y%m%d")
 
-            is_exist = self.__database.is_exist_base_data(index_code, begin_date[0:4])
+            is_exist = self.__database.is_exist_index_base_data(index_code, begin_date[0:4])
             if temp_date > begin_date and not is_exist:
                 temp_begin_date = datetime.date(int(begin_date[0:4]), 1, 1)
                 temp_begin_date = temp_begin_date.strftime("%Y%m%d")
                 before_data = self.__datapull.fetch_stock_index_info(index_code, temp_begin_date, need_date)
-                self.__database.write_stock_info(before_data)
+                self.__database.write_index_daily_info(before_data)
                 before_data = before_data[before_data['trade_date'] >= begin_date]
                 ret_value = before_data.merge(ret_value, how="outer")
                 self.write_base_info_to_redis(index_code, before_data)
@@ -304,6 +304,18 @@ class DataCenter:
         self.__database.write_stock_info(data)
         return data
 
+    def fetch_index_info_daily(self, begin_date, end_date):
+        """
+        获取股票指数的日线信息，@param trade_date这一天的所有信息
+        目前先处理两个指数的信息（上证指数：000001.SH和深证成指：399001.SZ）
+        :param trade_date:
+        :return:
+        """
+        fetch_list = ['000001.SH', '399001.SZ']
+        for item in fetch_list:
+            data = self.__datapull.fetch_stock_index_info(item, start_date=begin_date, end_date=end_date)
+            self.__database.write_index_daily_info(data)
+
     def fetch_adj_factor(self, ts_code, begin_date='20180101', end_date='20181231'):
         """
         从数据库当中获取复权因子，如果是复权因子没有包含最新的，那么重新从tushare接口获取
@@ -365,6 +377,8 @@ class DataCenter:
             now_date = now_time.strftime("%Y%m%d")
             temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
             if trade_date <= now_date and until_now:
+                # 首先获取一下指数的日线信息
+                self.fetch_index_info_daily(trade_date, now_date)
                 temp_base_info = self.fetch_all_base_one_day(trade_date=trade_date)
                 temp_date += datetime.timedelta(days=1)
                 trade_date = temp_date.strftime("%Y%m%d")
@@ -426,6 +440,11 @@ class DataCenter:
             result = self.__datapull.pull_data(all_stock_list[item][0], start_date='20160101', end_date=end_date)
             self.__database.write_stock_info(result)
             time.sleep(1)
+        # 获取一下日线数据
+        self.fetch_index_list()
+        # 把两个指数的数据获取到了
+        self.fetch_index_data('000001.SZ', '20000101', end_date)
+        self.fetch_index_data('399001.SZ', '20000101', end_date)
 
     def init_redis_cache(self, end_date=None):
         """
@@ -475,15 +494,16 @@ class DataCenter:
         base_data['af_open'] = base_data['open'] * adj_factor['adj_factor']
         return base_data
 
-    def fetch_index_list(self, market):
+    def fetch_index_list(self):
         """
         获取股票指数列表，亦即有那些指数
         :param market:
         :return:
         """
-        data = self.__datapull.fetch_index_list(market)
-        self.__database.write_index_list(data)
-        return data
+        market_list = ['MSCI', 'CSI', 'SSE', 'SZSE', 'CICC', 'SW', 'OTH']
+        for market_item in market_list:
+            data = self.__datapull.fetch_index_list(market_item)
+            self.__database.write_index_list(data)
 
     def fetch_base_data_pure_database(self, stock_code, begin_date, end_date=None):
         """

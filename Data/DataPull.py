@@ -10,7 +10,7 @@ class DataPull:
     def __init__(self):
         # 20c67a94089468176b4f9185aad4051d523edebec1a6fea334d47038 -- 有权限
         # 09aee96979d53b07bca863a4854ef8f549ee5960cddabda75e1cf518 -- 无权限
-        self.__pro = tushare.pro_api('09aee96979d53b07bca863a4854ef8f549ee5960cddabda75e1cf518')
+        self.__pro = tushare.pro_api('20c67a94089468176b4f9185aad4051d523edebec1a6fea334d47038')
 
     def pull_data(self, code, start_date='20180101', end_date="20181231"):
         """
@@ -27,7 +27,7 @@ class DataPull:
         data = self.__pro.daily(trade_date=trade_date)
         return data
 
-    def fetch_stock_index_info(self, index_code='00001.SH', start_date='20180101', end_date='20181231'):
+    def fetch_stock_index_info(self, index_code='000001.SH', start_date='20180101', end_date='20181231'):
         """
         获取股票交易指数的日常信息
         :param end_date:
@@ -67,6 +67,6 @@ class DataPull:
         data = self.__pro.stock_basic(list_status='L')
         return data
 
-    def fetch_index_list(self, market='SSE'):
-        data = self.__pro.index_basic(market)
+    def fetch_index_list(self, market):
+        data = self.__pro.index_basic(market=market)
         return data
