@@ -1523,7 +1523,7 @@ def find_long_flow_or_down_then_up(data_center, flow_period=30, max_wave_pct=0.0
     for i in range(len(stock_list)):
         base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
                                                               begin_date=begin_date_str, end_date=end_date_str)
-        if not base_data.empty:
+        if not base_data.empty and len(base_data) > 5:
             continue_up = True
             curr_exceed_count = 0
             first_close = base_data.at[0, 'close']
@@ -1555,6 +1555,8 @@ def find_long_flow_or_down_then_up(data_center, flow_period=30, max_wave_pct=0.0
         file_name += '_' + now_time_str + '_'
         file_name += '.csv'
         FileOutput.csv_output(None, result, file_name)
+    else:
+        print("no data!")
 
 
 # 统计类-----------------important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!----------------------
@@ -1651,3 +1653,7 @@ def order_stock_by_stdev(data_center, period=30):
         file_name += str(period)
         file_name += '.csv'
         FileOutput.csv_output(None, result, file_name)
+
+
+# def find_max_up_max_stock(data_center):
+

@@ -8,6 +8,7 @@ import numpy as np
 import pandas
 from sqlalchemy import create_engine
 
+
 class MySQLDB:
     def __init__(self):
         self.__con = pymysql.connect("localhost", "root", "123", "stock")
@@ -192,6 +193,29 @@ class MySQLDB:
         daily_info.to_sql('stock_index_baseinfo', self.__engine, if_exists='append', index=False)
 
     def delete_stock_list(self):
-        None
+        """
+        清空stock_list
+        :return:
+        """
+        sql = "delete from stock_list"
+        self.__cursor.execute(sql)
+        self.__con.commit()
 
+    def common_query(self, sql):
+        """
+        通用查询，返回结果，只是元组的集合
+        :param sql:
+        :return:
+        """
+        self.__cursor.execute(sql)
+        result = self.__cursor.fetchall()
+        return result
 
+    def common_query_to_pandas(self, sql) -> pandas.DataFrame:
+        """
+        通用查询，返回pandas.DataFrame
+        :param sql:
+        :return:
+        """
+        result = pandas.read_sql(sql, con=self.__engine)
+        return result

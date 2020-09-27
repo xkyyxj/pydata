@@ -13,6 +13,12 @@ import tushare
 import Data.DataCenter
 import Algorithm.Calculator as Calculator
 import Output.FileOutput as FileOutput
+from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
+import time
+from GUI import *
+from stock_rust import initialize
+from stock_rust import TimeFetcher
+
 import Algorithm.Verify as Verify
 import redis
 import json
@@ -24,9 +30,15 @@ import DailyUtils.FindLowStock as FindLowStock
 #
 # json1 = data_frame1.to_json(orient='table')
 # data_frame2 = pandas.read_json(json1, orient='table');
+# fig, ax = plt.subplots()  # Create a figure containing a single axes.
+# ax.plot([1, 2, 3, 4], [1, 4, 2, 3])  # Plot some data on the axes.
+from Simulation.KDJJudge import kdj_judge
+from Simulation.simulate import Simulate, multi_process_simulate
 
-data_center = Data.DataCenter.DataCenter()
+data_center = Data.DataCenter.DataCenter.get_instance()
 
+
+analyzer = IndicatorAnalyzer(data_center)
 # main程序
 # 获取命令行参数
 # print(sys.argv[0])
@@ -119,12 +131,58 @@ def fetch_base_info_daily(data_cen, trade_date):
     data_cen.fetch_all_daily_info_until_now(trade_date)
 
 
+def batch_ana_stock(data_center):
+    stock_list = data_center.fetch_stock_list()
+    for i in range(len(stock_list)):
+        stock_code = stock_list[i][0]
+        analyzer.start_analyze(stock_code)
+
+
+def simulate_with_kdj():
+    stock_list = data_center.fetch_stock_list()
+    stock_codes = ['600522.SH', '000007.SZ']
+    for i in range(len(stock_list)):
+        stock_codes.append(stock_list[i][0])
+    simulate = Simulate(stock_codes=stock_codes, judge_out_name="kdj_ana")
+    simulate.set_registry(kdj_judge)
+    simulate.set_init_mny(100000)
+    simulate()
+
+
+def simulate_multi_process():
+    stock_list = data_center.fetch_stock_list()
+    stock_codes = ['600522.SH', '000007.SZ']
+    for i in range(len(stock_list)):
+        stock_codes.append(stock_list[i][0])
+    multi_process_simulate(stock_codes, kdj_judge, "kaj_ana_multi")
+    pass
+
+
+test1 = ['a', 'b']
+print(test1.index('b'))
+
+
+if __name__ == '__main__':
+    # retval = data_center.common_query("select * from ana_category")
+
+    main_windows.init_gui()
+    # simulate_with_kdj()
+    # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
+    # time_fetch = TimeFetcher()
+    # time_fetch()
+    # simulate_multi_process()
+
+# batch_ana_stock(data_center)
+# analyzer.start_analyze("000001.SZ")
+# time.sleep(10000)
 # data_center.fetch_index_data('399001.SZ', '20000101', '20200515')
 # data_center.init_base_info()
 # data_center.init_redis_cache()
-fetch_base_info_daily(data_center, "20200811")
+# data_center.fetch_index_info_daily('20000101', '20200414')
+# fetch_base_info_daily(data_center, "20200901")
 # data_center.init_redis_cache()find_max_start_max_down_with_buy
-# fetch_base_info_daily(data_center, '20190215')
+# important !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# fetch_base_info_daily(data_center, '20200919')
 # result = Calculator.get_his_max_up_pct(data_center)
 # FileOutput.csv_output(None, result, 'up_win_pct_stock.csv')
 # result = Calculator.get_max_up_stock(data_center, up_days=2)
@@ -175,8 +233,8 @@ fetch_base_info_daily(data_center, "20200811")
 # V型反转的股票查找
 # Calculator.find_v_wave(data_center, up_must_high=False, down_days=4, allow_s_up=True)
 
-# 历史低值区间股票
-Calculator.find_history_down_stock(data_center, begin_date='20190101')
+# 历史低值区间股票 -- important!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Calculator.find_history_down_stock(data_center, begin_date='20190101')
 
 # 区间之内获利
 # Calculator.find_period_max_win(data_center, 60)

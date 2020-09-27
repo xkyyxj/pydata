@@ -21,6 +21,14 @@ class DataCenter:
         self.__redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379)
         self.__fetch_data_time = 0
 
+    @staticmethod
+    def get_instance():
+        """
+        单例模式，返回单例对象
+        :return:
+        """
+        return data_center
+
     def get_fetch_data_time(self):
         return self.__fetch_data_time
 
@@ -216,7 +224,7 @@ class DataCenter:
 
         return ret_value
 
-    def fetch_base_data(self, stock_code, begin_date="20180101", end_date="20181231"):
+    def fetch_base_data(self, stock_code, begin_date="20180101", end_date="20201231"):
         """
         获取股票的日交易信息，
         :param stock_code:
@@ -260,6 +268,7 @@ class DataCenter:
             # 可能存在一种情况：要求的日期正好该只股票停牌，但是该年份的数据已经写入到数据库当中了
             last_date = self.__database.is_exist_base_data(stock_code, end_date[0:4])
             is_exist = last_date and int(last_date[6:8]) > 2
+            # TODO -- 此处有问题，留待后续修正
             if temp_date < end_date and not is_exist:
                 if is_last_year:
                     temp_begin_date = need_date
@@ -293,7 +302,7 @@ class DataCenter:
                 ret_value = before_data.merge(ret_value, how="outer")
         self.write_data_frame_to_redis(ret_value)
         return ret_value
-    
+
     def fetch_all_base_one_day(self, trade_date):
         """
         获取股票基本信息的数据，@param trade_date这一天所有股票的当日交易信息
@@ -347,7 +356,7 @@ class DataCenter:
             local_data.append(ret_value)
         # 注意返回数据要根据@param begin_date和@param end_date过滤
         local_data = local_data[(local_data['trade_date'] >= begin_date) & (local_data['trade_date'] <= end_date)]
-        local_data.index = range(len(local_data))   # 重新设置一下index，避免两Series相乘找不到对应位置
+        local_data.index = range(len(local_data))  # 重新设置一下index，避免两Series相乘找不到对应位置
         return local_data
 
     def fetch_adj_factor_pure_database(self, ts_code, begin_date='20180101', end_date=None):
@@ -482,6 +491,15 @@ class DataCenter:
         else:
             return local_data
 
+    def refresh_stock_list(self):
+        """
+        更新股票列表-- stock_list更新
+        :return:
+        """
+        self.__database.delete_stock_list()
+        stock_list = self.__datapull.fetch_stock_list()
+        self.__database.write_stock_list(stock_list)
+
     @staticmethod
     def process_data(base_data, adj_factor):
         """
@@ -611,3 +629,14 @@ class DataCenter:
                 base_info.index = range(len(base_info))
                 base_info = Calculator.cal_macd_per_stock(base_info)
                 self.write_data_frame_to_redis(base_info)
+
+    def common_query(self, sql):
+        """
+        通用的数据查询接口
+        :param sql:
+        :return:
+        """
+        return self.__database.common_query(sql)
+
+
+data_center: DataCenter = DataCenter()
