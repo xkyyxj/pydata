@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>InfoDisplay</class>
+ <widget class="QDialog" name="InfoDisplay">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>200</width>
+    <height>241</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <widget class="QWidget" name="">
+   <property name="geometry">
+    <rect>
+     <x>22</x>
+     <y>12</y>
+     <width>144</width>
+     <height>213</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QLabel" name="ts_code">
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="date">
+      <property name="styleSheet">
+       <string notr="true">color: rgb(239, 41, 41);
+font: 13pt &quot;Cantarell&quot;;</string>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QLabel" name="max_l">
+        <property name="text">
+         <string>最高价:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="max_price">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <widget class="QLabel" name="min_l">
+        <property name="text">
+         <string>最低价:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="min_price">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <item>
+       <widget class="QLabel" name="open_l">
+        <property name="text">
+         <string>开盘价:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="open_price">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_5">
+      <item>
+       <widget class="QLabel" name="close_l">
+        <property name="text">
+         <string>收盘价:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="close_price">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_6">
+      <item>
+       <widget class="QLabel" name="pct_chg_l">
+        <property name="styleSheet">
+         <string notr="true">font: 13pt &quot;Cantarell&quot;;
+color: rgb(239, 41, 41);</string>
+        </property>
+        <property name="text">
+         <string>涨跌幅:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="pct_chg">
+        <property name="styleSheet">
+         <string notr="true">font: 13pt &quot;Cantarell&quot;;
+color: rgb(239, 41, 41);</string>
+        </property>
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QLabel" name="wave_l">
+        <property name="text">
+         <string>振幅:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="wave">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
