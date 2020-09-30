@@ -16,6 +16,7 @@ import Output.FileOutput as FileOutput
 from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 import time
 from GUI import *
+import ui_config.icons
 from stock_rust import initialize
 from stock_rust import TimeFetcher
 

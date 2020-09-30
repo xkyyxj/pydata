@@ -2,6 +2,8 @@ import PySide2
 from PySide2.QtCore import QAbstractTableModel
 
 from Data.DataCenter import DataCenter
+from GUI.TableArea.AnaResult import AnaResult
+from GUI.TableArea.CommonAnaRst import CommonAnaRst
 
 
 class MainTableModel(QAbstractTableModel):
@@ -15,12 +17,13 @@ class MainTableModel(QAbstractTableModel):
         self.filter = None
         self.display_head = []
         self.primary_key = None
+        self.ana_result = None
 
     def rowCount(self, parent=None, *args, **kwargs):
-        return len(self.table_data)
+        return len(self.table_data) if self.table_data is not None else 0
 
     def columnCount(self, parent=None, *args, **kwargs):
-        return len(self.select_columns)
+        return len(self.select_columns) if self.select_columns is not None else 0
 
     def headerData(self, section, orientation, role=None):
         """
@@ -63,6 +66,13 @@ class MainTableModel(QAbstractTableModel):
         query_rst = data_center.common_query(query_sql)
         for item in query_rst:
             self.table_data.append(item)
+        super().endResetModel()
+
+    def set_ana_result(self, data: AnaResult):
+        self.ana_result = data
+        self.table_data = data.data
+        self.display_head = data.display_head
+        self.select_columns = data.db_columns
         super().endResetModel()
 
     def set_primary_key(self, primary_key):
