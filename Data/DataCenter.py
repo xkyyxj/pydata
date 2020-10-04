@@ -266,41 +266,41 @@ class DataCenter:
 
             # 同时查看下是不是数据库当中已经有相关年份的数据了
             # 可能存在一种情况：要求的日期正好该只股票停牌，但是该年份的数据已经写入到数据库当中了
-            last_date = self.__database.is_exist_base_data(stock_code, end_date[0:4])
-            is_exist = last_date and int(last_date[6:8]) > 2
-            # TODO -- 此处有问题，留待后续修正
-            if temp_date < end_date and not is_exist:
-                if is_last_year:
-                    temp_begin_date = need_date
-                else:
-                    temp_begin_date = datetime.date(int(temp_date[0:4]) + 1, 1, 1)
-                    temp_begin_date = temp_begin_date.strftime("%Y%m%d")
-                if last_date:
-                    temp_end_date = datetime.date(int(last_date[0:4]), int(last_date[4:6]), int(last_date[6:8]))
-                    temp_end_date = temp_end_date.strftime("%Y%m%d")
-                else:
-                    temp_end_date = datetime.date(int(end_date[0:4]), 12, 31)
-                    temp_end_date = temp_end_date.strftime("%Y%m%d")
-                after_data = self.__datapull.pull_data(stock_code, temp_begin_date, temp_end_date)
-                self.__database.write_stock_info(after_data)
-                after_data = after_data[after_data['trade_date'] <= end_date]
-                ret_value = ret_value.merge(after_data, how="outer")
-
-            # 获取没有数据的天数，此处需要往前推一天
-            temp_date = ret_value.at[0, 'trade_date']
-            need_date = datetime.date(int(temp_date[0:4]), int(temp_date[4:6]), int(temp_date[6:8]))
-            need_date -= datetime.timedelta(days=1)
-            need_date = need_date.strftime("%Y%m%d")
-
-            is_exist = self.__database.is_exist_base_data(stock_code, begin_date[0:4])
-            if temp_date > begin_date and not is_exist:
-                temp_begin_date = datetime.date(int(begin_date[0:4]), 1, 1)
-                temp_begin_date = temp_begin_date.strftime("%Y%m%d")
-                before_data = self.__datapull.pull_data(stock_code, temp_begin_date, need_date)
-                self.__database.write_stock_info(before_data)
-                before_data = before_data[before_data['trade_date'] >= begin_date]
-                ret_value = before_data.merge(ret_value, how="outer")
-        self.write_data_frame_to_redis(ret_value)
+            # last_date = self.__database.is_exist_base_data(stock_code, end_date[0:4])
+            # is_exist = last_date and int(last_date[6:8]) > 2
+            # # TODO -- 此处有问题，留待后续修正
+            # if temp_date < end_date and not is_exist:
+            #     if is_last_year:
+            #         temp_begin_date = need_date
+            #     else:
+            #         temp_begin_date = datetime.date(int(temp_date[0:4]) + 1, 1, 1)
+            #         temp_begin_date = temp_begin_date.strftime("%Y%m%d")
+            #     if last_date:
+            #         temp_end_date = datetime.date(int(last_date[0:4]), int(last_date[4:6]), int(last_date[6:8]))
+            #         temp_end_date = temp_end_date.strftime("%Y%m%d")
+            #     else:
+            #         temp_end_date = datetime.date(int(end_date[0:4]), 12, 31)
+            #         temp_end_date = temp_end_date.strftime("%Y%m%d")
+            #     after_data = self.__datapull.pull_data(stock_code, temp_begin_date, temp_end_date)
+            #     self.__database.write_stock_info(after_data)
+            #     after_data = after_data[after_data['trade_date'] <= end_date]
+            #     ret_value = ret_value.merge(after_data, how="outer")
+            #
+            # # 获取没有数据的天数，此处需要往前推一天
+            # temp_date = ret_value.at[0, 'trade_date']
+            # need_date = datetime.date(int(temp_date[0:4]), int(temp_date[4:6]), int(temp_date[6:8]))
+            # need_date -= datetime.timedelta(days=1)
+            # need_date = need_date.strftime("%Y%m%d")
+            #
+            # is_exist = self.__database.is_exist_base_data(stock_code, begin_date[0:4])
+            # if temp_date > begin_date and not is_exist:
+            #     temp_begin_date = datetime.date(int(begin_date[0:4]), 1, 1)
+            #     temp_begin_date = temp_begin_date.strftime("%Y%m%d")
+            #     before_data = self.__datapull.pull_data(stock_code, temp_begin_date, need_date)
+            #     self.__database.write_stock_info(before_data)
+            #     before_data = before_data[before_data['trade_date'] >= begin_date]
+            #     ret_value = before_data.merge(ret_value, how="outer")
+        # self.write_data_frame_to_redis(ret_value)
         return ret_value
 
     def fetch_all_base_one_day(self, trade_date):
@@ -637,6 +637,14 @@ class DataCenter:
         :return:
         """
         return self.__database.common_query(sql)
+
+    def common_query_to_pandas(self, sql):
+        """
+        通常查询接口，将查询结果返回为pandas.DataFrame
+        :param sql:
+        :return:
+        """
+        return self.__database.common_query_to_pandas(sql)
 
 
 data_center: DataCenter = DataCenter()

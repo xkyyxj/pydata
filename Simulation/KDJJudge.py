@@ -1,6 +1,8 @@
 import pandas
 import pandas_ta as ta
 
+from Simulation import Simulate
+
 
 def kdj_judge(base_data):
     """
@@ -21,7 +23,7 @@ def kdj_judge(base_data):
         # 初始化返回结果的第一条数据
         for i in range(0, default_length):
             temp_dict = {
-                "flag": 0,
+                "flag": Simulate.DO_NOTHING,
                 'percent': 0
             }
             ret_data = ret_data.append(temp_dict, ignore_index=True)
@@ -34,7 +36,7 @@ def kdj_judge(base_data):
             is_curr_high = kdj_ret.at[i, 'K_9_3'] >= kdj_ret.at[i, 'D_9_3']
             if kdj_ret.at[i, 'D_9_3'] < 20 and is_pre_low and is_curr_high:
                 temp_dict = {
-                    "flag": 1,
+                    "flag": Simulate.BUY_FLAG,
                     'percent': 0.1
                 }
                 ret_data = ret_data.append(temp_dict, ignore_index=True)
@@ -43,13 +45,13 @@ def kdj_judge(base_data):
                 is_curr_low = kdj_ret.at[i, 'K_9_3'] <= kdj_ret.at[i, 'D_9_3']
                 if is_pre_high and is_curr_low:
                     temp_dict = {
-                        "flag": -1,
+                        "flag": Simulate.SOLD_FLAG,
                         'percent': 0.1
                     }
                     ret_data = ret_data.append(temp_dict, ignore_index=True)
             else:
                 temp_dict = {
-                    "flag": 0,
+                    "flag": Simulate.DO_NOTHING,
                     'percent': 0
                 }
                 ret_data = ret_data.append(temp_dict, ignore_index=True)

@@ -33,8 +33,9 @@ import DailyUtils.FindLowStock as FindLowStock
 # data_frame2 = pandas.read_json(json1, orient='table');
 # fig, ax = plt.subplots()  # Create a figure containing a single axes.
 # ax.plot([1, 2, 3, 4], [1, 4, 2, 3])  # Plot some data on the axes.
+from Simulation import period_simulate, simulate_with_macd_multi_process
 from Simulation.KDJJudge import kdj_judge
-from Simulation.simulate import Simulate, multi_process_simulate
+from Simulation.simulate import Simulate, MultiProcessor
 
 data_center = Data.DataCenter.DataCenter.get_instance()
 
@@ -139,33 +140,10 @@ def batch_ana_stock(data_center):
         analyzer.start_analyze(stock_code)
 
 
-def simulate_with_kdj():
-    stock_list = data_center.fetch_stock_list()
-    stock_codes = ['600522.SH', '000007.SZ']
-    for i in range(len(stock_list)):
-        stock_codes.append(stock_list[i][0])
-    simulate = Simulate(stock_codes=stock_codes, judge_out_name="kdj_ana")
-    simulate.set_registry(kdj_judge)
-    simulate.set_init_mny(100000)
-    simulate()
-
-
-def simulate_multi_process():
-    stock_list = data_center.fetch_stock_list()
-    stock_codes = ['600522.SH', '000007.SZ']
-    for i in range(len(stock_list)):
-        stock_codes.append(stock_list[i][0])
-    multi_process_simulate(stock_codes, kdj_judge, "kaj_ana_multi")
-    pass
-
-
-test1 = ['a', 'b']
-print(test1.index('b'))
-
-
 if __name__ == '__main__':
     # retval = data_center.common_query("select * from ana_category")
-
+    # period_simulate(data_center)
+    simulate_with_macd_multi_process(data_center)
     main_windows.init_gui()
     # simulate_with_kdj()
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
