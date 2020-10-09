@@ -27,7 +27,6 @@ def kdj_judge(base_data):
                 'percent': 0
             }
             ret_data = ret_data.append(temp_dict, ignore_index=True)
-        ret_data = ret_data.append(temp_dict, ignore_index=True)
         for i in range(default_length, len(kdj_ret)):
             # 第一条判定准则：
             # 1. D值小于20，并且K值从下向上穿越过D值，买入
@@ -47,6 +46,12 @@ def kdj_judge(base_data):
                     temp_dict = {
                         "flag": Simulate.SOLD_FLAG,
                         'percent': 0.1
+                    }
+                    ret_data = ret_data.append(temp_dict, ignore_index=True)
+                else:
+                    temp_dict = {
+                        "flag": Simulate.DO_NOTHING,
+                        'percent': 0
                     }
                     ret_data = ret_data.append(temp_dict, ignore_index=True)
             else:

@@ -59,19 +59,11 @@ class MultiProcessor:
                 final_sum_dict[item] = temp_dict[item] \
                     if final_sum_dict[item] is None or final_sum_dict[item] > temp_dict[item] \
                     else final_sum_dict[item]
-            # final_sum_dict['win_num'] = final_sum_dict['win_num'] + temp_dict['win_num']
-            # final_sum_dict['lose_num'] = final_sum_dict['lose_num'] + temp_dict['lose_num']
-            # final_sum_dict['max_win_pct'] = temp_dict['max_win_pct'] \
-            #     if final_sum_dict['max_win_pct'] > temp_dict['max_win_pct'] else final_sum_dict['max_win_pct']
-            # final_sum_dict['max_lost_pct'] = temp_dict['max_lost_pct'] \
-            #     if final_sum_dict['max_lost_pct'] <= temp_dict['max_lost_pct'] else final_sum_dict['max_lost_pct']
         all_field = self.sum_field
         all_field.extend(self.max_field)
         all_field.extend(self.min_field)
         sum_frame = pandas.DataFrame(columns=tuple(all_field))
         sum_frame = sum_frame.append(final_sum_dict, ignore_index=True)
-        # sum_frame = pandas.DataFrame(columns=('win_num', 'lose_num', 'max_win_pct', 'max_lost_pct'))
-        # sum_frame = sum_frame.append(final_sum_dict, ignore_index=True)
         FileOutput.csv_output(None, sum_frame, "final_sum_info", spe_dir_name=out_dir_name)
 
 
@@ -95,6 +87,7 @@ class Simulate:
     BUY_FLAG = 1
     SOLD_FLAG = -1
     DO_NOTHING = 0
+    MULTI_INDI_BETWEEN = 5 # 如果有多种指标，多少天之内均发出买入信号就决定买入
 
     def __init__(self, stock_codes, judge_out_name, judge_time=None):
         self.initial_mny = None
@@ -142,16 +135,50 @@ class Simulate:
                 'win_pct': 0
             }
             base_infos = self.data_center.fetch_base_data(stock_code)
-            ret_time = self.judge_time(base_infos)
-            if ret_time is None:
+
+            if base_infos is None or len(base_infos) == 0:
+                continue
+
+            ret_time = []
+            for item in self.judge_time:
+                ret_time.append(item(base_infos))
+            if ret_time is None or len(ret_time) == 0:
                 continue
             detail_trade_info = pandas.DataFrame(
                 columns=('ts_code', 'curr_close', 'trade_date', 'trade_num', 'hold_num', 'hold_mny',
                          'total_mny'))
-            for i in range(len(ret_time)):
-                if ret_time.at[i, 'flag'] == 1:
+            if len(ret_time[0]) != len(base_infos):
+                print("Not equals!!!")
+            for i in range(len(ret_time[0])):
+                # 判定是否是买入时机
+                operate_flag = self.DO_NOTHING
+                temp_buy_pct = 0.1
+                for item in ret_time:
+                    # 从当前往前5天之内是否有发出过买入信号，如果有，就算有
+                    start_index = i - self.MULTI_INDI_BETWEEN
+                    start_index = 0 if start_index < 0 else start_index
+                    temp_val = self.DO_NOTHING
+                    for j in range(start_index, i + 1):
+                        if item.at[j, 'flag'] == self.BUY_FLAG:
+                            temp_val = self.BUY_FLAG
+                            temp_buy_pct = item.at[j, 'percent'] if 0 < item.at[j, 'percent'] < temp_buy_pct \
+                                else temp_buy_pct
+                            break
+                        elif item.at[j, 'flag'] == self.SOLD_FLAG:
+                            temp_val = self.SOLD_FLAG
+                            temp_buy_pct = item.at[j, 'percent'] if 0 < item.at[j, 'percent'] < temp_buy_pct \
+                                else temp_buy_pct
+                            break
+                    if operate_flag == self.DO_NOTHING or operate_flag == temp_val:
+                        operate_flag = temp_val
+                        continue
+                    else:
+                        operate_flag = self.DO_NOTHING
+                        break
+
+                if operate_flag == self.BUY_FLAG:
                     # 默认买入10%
-                    buy_pct = ret_time.at[i, 'percent'] if ret_time.at[i, 'percent'] > 0 else 0.1
+                    buy_pct = temp_buy_pct
                     buy_mny = self.initial_mny * buy_pct
                     buy_mny = self.left_mny if self.left_mny < buy_mny else buy_mny
                     buy_num = buy_mny / base_infos.at[i, 'close']
@@ -170,9 +197,9 @@ class Simulate:
                     }
                     detail_trade_info = detail_trade_info.append(temp_dict, ignore_index=True)
                     trade_rst_dict['trade_times'] = trade_rst_dict['trade_times'] + 1
-                elif ret_time.at[i, 'flag'] == -1:
+                elif operate_flag == self.SOLD_FLAG:
                     # 默认卖出持仓数量的10%
-                    sold_pct = ret_time.at[i, 'percent'] if ret_time.at[i, 'percent'] > 0 else 0.1
+                    sold_pct = temp_buy_pct
                     sold_num = self.hold_num * sold_pct
                     sold_num = sold_num / 100 * 100
                     self.hold_num = self.hold_num - sold_num
