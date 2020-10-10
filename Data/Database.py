@@ -12,8 +12,9 @@ from sqlalchemy import create_engine
 class MySQLDB:
     def __init__(self):
         self.__con = pymysql.connect("localhost", "root", "123", "stock")
+        self.__con.autocommit(True)
         self.__engine = create_engine('mysql+mysqlconnector://root:123@localhost:3306/stock')
-        self.__cursor = self.__con.cursor()
+        self.__cursor = None
 
     def write_stock_info(self, info):
         """
@@ -69,12 +70,16 @@ class MySQLDB:
         :param end_date:
         :return:
         """
+        self.__cursor = self.__con.cursor()
         query_sql = "select * from stock_adj_info where ts_code=%s and trade_date >= %s and trade_date <= %s"
         self.__cursor.execute(query_sql, (code, start_date, end_date))
         result = np.array(self.__cursor.fetchall())
+        self.__con.commit()
+        self.__cursor.close()
         return result
 
     def fetch_stock_list(self, code, market=['主板', '中小板'], where=''):
+        self.__cursor = self.__con.cursor()
         has_where = False
         query_sql = "select * from stock_list"
         condition = []
@@ -96,7 +101,10 @@ class MySQLDB:
             query_sql += " and " + where if has_where else " where " + where
         query_sql += " order by ts_code"
         self.__cursor.execute(query_sql, condition)
-        return self.__cursor.fetchall()
+        data = self.__cursor.fetchall()
+        self.__con.commit()
+        self.__cursor.close()
+        return data
 
     def write_stock_list(self, data):
         """
@@ -152,24 +160,33 @@ class MySQLDB:
         data.to_sql('adj_factor', self.__engine, if_exists='append', index=False)
 
     def is_exist_base_data(self, stock_code, date):
+        self.__cursor = self.__con.cursor()
         query_sql = "select trade_date from stock_base_info where ts_code=%s and trade_date like %s " \
                     "order by trade_date limit 1"
         self.__cursor.execute(query_sql, (stock_code, date + "%"))
         result = self.__cursor.fetchall()
+        self.__con.commit()
+        self.__cursor.close()
         return len(result) > 0 and result[0][0]
 
     def is_exist_index_base_data(self, stock_code, date):
+        self.__cursor = self.__con.cursor()
         query_sql = "select trade_date from stock_index_baseinfo where ts_code=%s and trade_date like %s " \
                     "order by trade_date limit 1"
         self.__cursor.execute(query_sql, (stock_code, date + "%"))
         result = self.__cursor.fetchall()
+        self.__con.commit()
+        self.__cursor.close()
         return len(result) > 0 and result[0][0]
 
     def is_exist_adj_factor(self, stock_code, date):
+        self.__cursor = self.__con.cursor()
         query_sql = "select trade_date from adj_factor where ts_code=%s and trade_date like %s " \
                     "order by trade_date limit 1"
         self.__cursor.execute(query_sql, (stock_code, date + "%"))
         result = self.__cursor.fetchall()
+        self.__con.commit()
+        self.__cursor.close()
         return len(result) > 0 and result[0][0]
 
     def write_index_list(self, index_list):
@@ -197,9 +214,11 @@ class MySQLDB:
         清空stock_list
         :return:
         """
+        self.__cursor = self.__con.cursor()
         sql = "delete from stock_list"
         self.__cursor.execute(sql)
         self.__con.commit()
+        self.__cursor.close()
 
     def common_query(self, sql):
         """
@@ -207,8 +226,10 @@ class MySQLDB:
         :param sql:
         :return:
         """
+        self.__cursor = self.__con.cursor()
         self.__cursor.execute(sql)
         result = self.__cursor.fetchall()
+        self.__cursor.close()
         return result
 
     def common_query_to_pandas(self, sql) -> pandas.DataFrame:
@@ -219,3 +240,12 @@ class MySQLDB:
         """
         result = pandas.read_sql(sql, con=self.__engine)
         return result
+
+    def common_write_data_frame(self, data_frame, table_name):
+        """
+        通用的将pandas.DataFrame写入到数据库当中
+        :param table_name: 数据库表名
+        :param data_frame: 将要写入的数据，类型是pandas.DataFrame
+        :return:
+        """
+        data_frame.to_sql(table_name, self.__engine, if_exists='append', index=False)

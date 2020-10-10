@@ -17,8 +17,10 @@ from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 import time
 from GUI import *
 import ui_config.icons
-from stock_rust import initialize
-from stock_rust import TimeFetcher
+from stock_py import initialize
+from stock_py import TimeFetcher
+from stock_py import calculate_in_low_sync
+from stock_py import calculate_in_low_async
 
 import Algorithm.Verify as Verify
 import redis
@@ -33,6 +35,7 @@ import DailyUtils.FindLowStock as FindLowStock
 # data_frame2 = pandas.read_json(json1, orient='table');
 # fig, ax = plt.subplots()  # Create a figure containing a single axes.
 # ax.plot([1, 2, 3, 4], [1, 4, 2, 3])  # Plot some data on the axes.
+from Selector import select_from_in_low_by_indicator
 from Simulation import period_simulate, simulate_with_macd_multi_process, simulate_with_macd_kdj
 from Simulation.KDJJudge import kdj_judge
 from Simulation.simulate import Simulate, MultiProcessor
@@ -144,7 +147,11 @@ if __name__ == '__main__':
     # retval = data_center.common_query("select * from ana_category")
     # period_simulate(data_center)
     # simulate_with_macd_multi_process(data_center)
-    simulate_with_macd_kdj(data_center)
+    # simulate_with_macd_kdj(data_center)
+    # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
+    # calculate_in_low_async()
+    # fetch_base_info_daily(data_center, "20201001")
+    select_from_in_low_by_indicator(data_center)
     main_windows.init_gui()
     # simulate_with_kdj()
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
@@ -159,7 +166,7 @@ if __name__ == '__main__':
 # data_center.init_base_info()
 # data_center.init_redis_cache()
 # data_center.fetch_index_info_daily('20000101', '20200414')
-# fetch_base_info_daily(data_center, "20200901")
+# fetch_base_info_daily(data_center, "20201001")
 # data_center.init_redis_cache()find_max_start_max_down_with_buy
 # important !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # fetch_base_info_daily(data_center, '20200919')

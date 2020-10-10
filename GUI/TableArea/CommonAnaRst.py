@@ -27,12 +27,13 @@ class CommonAnaRst(AnaResult):
         if is_redis:
             return
 
-        query_sql = "select column_name, display_name from table_column where pk_tablemeta='"
+        query_sql = "select column_name, display_name, columntype from table_column where pk_tablemeta='"
         query_sql = query_sql + str(self.table_meta) + "'"
         table_infos = data_center.common_query(query_sql)
         for item in table_infos:
             self.db_columns.append(item[0])
             self.display_head.append(item[1])
+            self.column_type.append(item[2])
         if len(self.db_columns) == 0:
             return
 
@@ -46,4 +47,6 @@ class CommonAnaRst(AnaResult):
         data = data_center.common_query(query_sql)
         for item in data:
             self.data.append(list(item))
+        # 处理一下数据类型问题
+        self.process_data_type()
 

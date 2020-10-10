@@ -646,5 +646,14 @@ class DataCenter:
         """
         return self.__database.common_query_to_pandas(sql)
 
+    def common_write_data_frame(self, data_frame, table_name):
+        """
+        通用的将pandas.DataFrame写入到数据库当中
+        :param table_name: 数据库表名
+        :param data_frame: 将要写入的数据，类型是pandas.DataFrame
+        :return:
+        """
+        self.__database.common_write_data_frame(data_frame, table_name)
+
 
 data_center: DataCenter = DataCenter()

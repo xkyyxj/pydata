@@ -17,7 +17,7 @@ def macd_judge(base_data, fast=12, slow=26, signal=9):
     """
     field_suffix = "_" + str(fast) + "_" + str(slow) + "_" + str(signal)
     macd_field_name = 'MACD' + field_suffix
-    dea_field_name = 'MACDh' + field_suffix
+    histogram_field_name = 'MACDh' + field_suffix
     signal_field_name = 'MACDs' + field_suffix
     if not base_data.empty and len(base_data) > 0:
         ret_data = pandas.DataFrame(columns=('flag', 'percent'))
