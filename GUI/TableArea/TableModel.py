@@ -79,6 +79,7 @@ class MainTableModel(QAbstractTableModel):
         self.primary_key = primary_key
 
     def get_primary_key_value(self, index):
+        # FIXME -- 这段代码根本就是没有用，虽然工作了，在table_column当中加一个是否主键列
         row = index.row()
         column = 0
         for i in range(len(self.select_columns)):
@@ -124,3 +125,9 @@ class MainTableModel(QAbstractTableModel):
 
     def update_view(self):
         super().endResetModel()
+
+    def sort(self, column, order=None):
+        self.table_data = sorted(self.table_data, key=lambda x: (x[column],),
+                                 reverse=(order != PySide2.QtCore.Qt.SortOrder.AscendingOrder))
+        # FIXME -- 这样做是不是有效率问题？？？？
+        self.update_view()
