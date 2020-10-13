@@ -23,7 +23,7 @@ class StockChartModel(QObject):
             return
         ts_name = ts_name[0]
         # 第二步：查询股票的详细信息
-        query_detail_info = "select open, close, high, low, pct_chg from stock_base_info where ts_code='"
+        query_detail_info = "select open, close, high, low, pct_chg, trade_date from stock_base_info where ts_code='"
         query_detail_info = query_detail_info + self.selected_ts + "'"
         ret_data = self.data_center.common_query(query_detail_info)
         stock_batch_info = StockBatchKInfo()
@@ -36,6 +36,7 @@ class StockChartModel(QObject):
             single_k_info.high = item[2]
             single_k_info.low = item[3]
             single_k_info.pct_chg = item[4]
+            single_k_info.trade_date = item[5]
             stock_batch_info.add_single_info(single_k_info)
         self.data = stock_batch_info
         return self.data

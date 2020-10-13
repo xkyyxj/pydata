@@ -9,6 +9,7 @@ from Data.DataCenter import DataCenter
 from GUI.CustUIItem.StockChartModel import StockChartModel
 from GUI.TableArea.CommonAnaRst import CommonAnaRst
 from GUI.TableArea.TableModel import MainTableModel
+from GUI.infodisplay import InfoDisplay
 from GUI.treeItem.Category import Category
 from GUI.treeItem.CategoryTreeModel import CategoryTreeModel
 from ui_config.main_window import Ui_MainWindow
@@ -56,6 +57,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.view_model = StockChartModel(data_center)
         self.ui.openGLWidget.set_model(self.view_model)
 
+        # 创建一个弹出窗，然后显示单根Ｋ线的信息
+        display = InfoDisplay(self)
+        display.setModal(PySide2.QtCore.Qt.NonModal)
+        display.show()
+        self.ui.openGLWidget.mouse_on_changed.connect(display.stock_info_changed)
+
     def ana_result_type(self, type, table_meta):
         rst = CommonAnaRst(table_meta)
         # rst.set_filter("where del_date is null")
@@ -69,7 +76,6 @@ class MainWindow(QtWidgets.QMainWindow):
         :param un_selected:
         :return:
         """
-        print("hehedada ahahahhahahhahahah")
         if selected.indexes() is None or len(selected.indexes()) == 0:
             return
         index = selected.indexes()[0]

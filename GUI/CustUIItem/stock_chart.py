@@ -1,6 +1,6 @@
 import PySide2
 from PySide2.QtWidgets import QLCDNumber, QSlider, QWidget, QVBoxLayout, QApplication, QGridLayout
-from PySide2.QtCore import Qt, Slot, QLine, QRect
+from PySide2.QtCore import Qt, Slot, QLine, QRect, Signal
 from PySide2.QtWidgets import QFrame
 from PySide2.QtGui import QPaintEvent, QPen, QFont, QKeyEvent, QPalette
 from PySide2.QtGui import QPainter
@@ -9,6 +9,7 @@ from PySide2.QtGui import QColor
 from PySide2.QtCore import QPoint
 from PySide2.QtCore import QSize
 
+from Data.Result import StockKInfo
 from GUI.CustUIItem.StockChartModel import StockChartModel
 
 
@@ -27,6 +28,8 @@ class StockChart(QFrame):
     KLINE_PADDING = 2
     # 价格字体的大小，12个像素
     FONT_SIZE = 12
+
+    mouse_on_changed = Signal(StockKInfo)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -184,6 +187,30 @@ class StockChart(QFrame):
     def mouseMoveEvent(self, event):
         self.curr_mouse_position = event.pos()
         self.update()
+        stock_k_info = StockKInfo()
+        # 计算一下当前光标位置下的股票索引
+        k_line_num = self.curr_mouse_position.x() // (self.each_line_width + self.KLINE_PADDING)
+        batch_k_line_info = self.model.get_current_stock_k_info()
+        stock_k_info.ts_code = batch_k_line_info.ts_code
+        stock_k_info.ts_name = batch_k_line_info.ts_name
+        curr_mouse_on_index = self.start_index + k_line_num
+        # 因为右边有价格显示区，所以要避免数组越界的问题
+        if curr_mouse_on_index >= len(batch_k_line_info.info_list):
+            return
+
+        # 从Model当中获取相应的股票信息
+        origin_info = batch_k_line_info.info_list[curr_mouse_on_index]
+        stock_k_info.low = origin_info.low
+        stock_k_info.high = origin_info.high
+        stock_k_info.open = origin_info.open
+        stock_k_info.close = origin_info.close
+        stock_k_info.pct_chg = origin_info.pct_chg
+        stock_k_info.trade_date = origin_info.trade_date
+
+        # 获取一下前一天的价格
+        stock_k_info.pre_close = batch_k_line_info.info_list[curr_mouse_on_index - 1].close \
+            if curr_mouse_on_index > 0 else 0
+        self.mouse_on_changed.emit(stock_k_info)
 
     def keyReleaseEvent(self, event: QKeyEvent):
         # FIXME -- 每次按动上或者下键，K线的宽度加2？
@@ -212,7 +239,6 @@ class StockChart(QFrame):
             self.update()
 
     def resizeEvent(self, event):
-        self.is_first_render = True
         self.update()
 
     def calculate_start_last_index(self, batch_k_line_info, show_num):
