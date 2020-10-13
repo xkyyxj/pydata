@@ -28,7 +28,7 @@ class CommonAnaRst(AnaResult):
             return
 
         query_sql = "select column_name, display_name, columntype from table_column where pk_tablemeta='"
-        query_sql = query_sql + str(self.table_meta) + "'"
+        query_sql = query_sql + str(self.table_meta) + "' order by display_order"
         table_infos = data_center.common_query(query_sql)
         for item in table_infos:
             self.db_columns.append(item[0])

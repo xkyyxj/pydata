@@ -8,6 +8,7 @@ from PySide2.QtWidgets import QSizePolicy, QTreeView, QFileSystemModel, QAction
 from Data.DataCenter import DataCenter
 from GUI.CustUIItem.StockChartModel import StockChartModel
 from GUI.TableArea.CommonAnaRst import CommonAnaRst
+from GUI.TableArea.PeriodVerifyResult import PeriodVerifyResult
 from GUI.TableArea.TableModel import MainTableModel
 from GUI.infodisplay import InfoDisplay
 from GUI.treeItem.Category import Category
@@ -63,8 +64,11 @@ class MainWindow(QtWidgets.QMainWindow):
         display.show()
         self.ui.openGLWidget.mouse_on_changed.connect(display.stock_info_changed)
 
-    def ana_result_type(self, type, table_meta):
-        rst = CommonAnaRst(table_meta)
+    def ana_result_type(self, table_name, table_meta):
+        if table_name == 'period_verify' or table_name == 'period_verify_manual':
+            rst = PeriodVerifyResult(table_meta, table_name)
+        else:
+            rst = CommonAnaRst(table_meta)
         # rst.set_filter("where del_date is null")
         rst.init_data_from_db()
         self.table_model.set_ana_result(rst)
@@ -101,7 +105,6 @@ class MainWindow(QtWidgets.QMainWindow):
         ts_code = index.data(MainTableModel.PRIMARY_KEY_ROLE)
         print(ts_code)
         self.view_model.set_curr_selected_stock(ts_code)
-        pass
 
     def mark_manual(self):
         """

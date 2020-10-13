@@ -150,7 +150,7 @@ if __name__ == '__main__':
     # simulate_with_macd_kdj(data_center)
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
     # calculate_in_low_async()
-    # fetch_base_info_daily(data_center, "20201001")
+    # fetch_base_info_daily(data_center, "20201010")
     # select_from_in_low_by_indicator(data_center)
     main_windows.init_gui()
     # simulate_with_kdj()

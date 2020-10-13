@@ -34,7 +34,7 @@ class MACDSelector:
         if len(self.ts_codes) == 0:
             return
 
-        result = pandas.DataFrame(columns=('ts_code', 'in_date', 'origin_from', 'in_reason', 'finished', 'manual'))
+        result = pandas.DataFrame(columns=('ts_code', 'in_price', 'in_date', 'origin_from', 'in_reason', 'finished', 'manual'))
         for ts_code in self.ts_codes:
             field_suffix = "_" + str(self.fast) + "_" + str(self.slow) + "_" + str(self.signal)
             macd_field_name = 'MACD' + field_suffix
@@ -61,7 +61,8 @@ class MACDSelector:
                         now_time_str = now_time.strftime('%Y%m%d')
                         temp_dict = {
                             'ts_code': ts_code,
-                            'in_date': now_time_str,
+                            'in_price': close[i],
+                            'in_date': base_infos.at[start_index, 'trade_date'],
                             'origin_from': 'macd',
                             'in_reason': 'macd金叉',
                             'finished': 0,
