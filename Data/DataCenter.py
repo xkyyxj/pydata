@@ -391,7 +391,7 @@ class DataCenter:
                 temp_base_info = self.fetch_all_base_one_day(trade_date=trade_date)
                 temp_date += datetime.timedelta(days=1)
                 trade_date = temp_date.strftime("%Y%m%d")
-                while trade_date < now_date:
+                while trade_date <= now_date:
                     temp_base_info = temp_base_info.append(self.fetch_all_base_one_day(trade_date=trade_date))
                     temp_date += datetime.timedelta(days=1)
                     trade_date = temp_date.strftime("%Y%m%d")
@@ -629,6 +629,36 @@ class DataCenter:
                 base_info.index = range(len(base_info))
                 base_info = Calculator.cal_macd_per_stock(base_info)
                 self.write_data_frame_to_redis(base_info)
+
+    def fetch_finance_indicator(self, ts_code, start_date, end_date):
+        """
+        获取股票指标数据
+        1. 首先是从数据库当中获取，
+        2. 如果数据库当中没有存储，则从tushare上获取，并且存储到数据库当中
+        :param ts_code:
+        :param start_date:
+        :param end_date:
+        :return:
+        """
+        query_sql = "select * from finance_indicator where end_date>'" + str(start_date) + \
+                    "' and end_date <= '" + str(end_date) + "' and ts_code='" + ts_code + "'"
+        ret_data = self.__database.common_query_to_pandas(query_sql)
+        if ret_data.empty:
+            self.fetch_finance_indicator_from_tushare(ts_code, start_date, end_date)
+        ret_data = self.__database.common_query_to_pandas(query_sql)
+        return ret_data
+
+    def fetch_finance_indicator_from_tushare(self, ts_code, start_date, end_date):
+        """
+        获取财务指标数据并且将财务数据写入到数据库当中
+        注意只能单条获取，并且只能够获取60条的
+        :param ts_code:
+        :param start_date:
+        :param end_date:
+        :return:
+        """
+        ret_data = self.__datapull.fetch_finance_data(ts_code, start_date, end_date)
+        self.common_write_data_frame(ret_data, 'finance_indicator')
 
     def common_query(self, sql):
         """

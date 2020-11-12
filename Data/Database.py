@@ -217,8 +217,6 @@ class MySQLDB:
         self.__cursor = self.__con.cursor()
         sql = "delete from stock_list"
         self.__cursor.execute(sql)
-        self.__con.commit()
-        self.__cursor.close()
 
     def common_query(self, sql):
         """

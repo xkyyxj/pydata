@@ -3,6 +3,7 @@
 程序入口
 """
 import sys
+import threading
 import time
 import datetime
 import numpy as np
@@ -15,12 +16,15 @@ import Algorithm.Calculator as Calculator
 import Output.FileOutput as FileOutput
 from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 import time
+from win10toast import ToastNotifier
 from GUI import *
 import ui_config.icons
 from stock_py import initialize
 from stock_py import TimeFetcher
+from stock_py import HistoryDownAna
 from stock_py import calculate_in_low_sync
 from stock_py import calculate_in_low_async
+from stock_py import calculate_history_down_sync
 
 import Algorithm.Verify as Verify
 import redis
@@ -42,8 +46,9 @@ from Simulation.simulate import Simulate, MultiProcessor
 
 data_center = Data.DataCenter.DataCenter.get_instance()
 
-
 analyzer = IndicatorAnalyzer(data_center)
+
+
 # main程序
 # 获取命令行参数
 # print(sys.argv[0])
@@ -148,11 +153,23 @@ if __name__ == '__main__':
     # period_simulate(data_center)
     # simulate_with_macd_multi_process(data_center)
     # simulate_with_macd_kdj(data_center)
-    # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
+    initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
+    # calculate_history_down_sync()
     # calculate_in_low_async()
-    # fetch_base_info_daily(data_center, "20201010")
+    # fetch_base_info_daily(data_center, "20201017")
     # select_from_in_low_by_indicator(data_center)
+
+    # toast.show_toast(title="This is a title", msg="This is a message",
+    #                  icon_path=r"C:\Program Files\Internet Explorer\images\bing.ico", duration=10)
+    # thread = threading.Thread(target=show_toast)
+    # thread.start()
+    time_fetch = TimeFetcher()
+    time_fetch()
+    history_down_ana = HistoryDownAna()
+    history_down_ana()
+    # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
     main_windows.init_gui()
+
     # simulate_with_kdj()
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
     # time_fetch = TimeFetcher()

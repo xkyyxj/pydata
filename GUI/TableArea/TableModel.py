@@ -16,7 +16,7 @@ class MainTableModel(QAbstractTableModel):
         self.table_name = None
         self.filter = None
         self.display_head = []
-        self.primary_key = None
+        self.primary_key = 'ts_code'
         self.ana_result = None
 
     def rowCount(self, parent=None, *args, **kwargs):

@@ -37,11 +37,16 @@ class CommonAnaRst(AnaResult):
         if len(self.db_columns) == 0:
             return
 
-        query_sql = "select "
+        # 此处特殊处理一下ts_name字段
+        query_sql = "select stock_list.name as ts_name, "
         for item in self.db_columns:
-            query_sql = query_sql + item + ","
+            if item == 'ts_name':
+                continue
+            real_item = self.db_table_name + ".ts_code " if item == 'ts_code' else item
+            query_sql = query_sql + real_item + ","
         query_sql = query_sql[:-1]
         query_sql = query_sql + " from " + self.db_table_name
+        query_sql = query_sql + " left join stock_list on stock_list.ts_code=" + self.db_table_name + ".ts_code "
         if self.filter is not None:
             query_sql = query_sql + " " + self.filter
         data = data_center.common_query(query_sql)

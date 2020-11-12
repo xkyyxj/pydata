@@ -40,18 +40,18 @@ class PeriodVerifyResult(CommonAnaRst):
             base_infos = data_center.common_query(query_sql)
             for single_period in period:
                 if len(base_infos) >= single_period:
-                    target_day_close = base_infos[single_period - 1]
+                    target_day_close = base_infos[single_period - 1][0]
                     in_price = item[2]
                     win_pct = (target_day_close - in_price) / target_day_close * 100
-                    win_pct = str(win_pct) + '%'
+                    win_pct = win_pct
 
                     update_sql = "update " + self.table_name + " set "
-                    update_sql = update_sql + period_field_map[single_period] + "='" + win_pct + "'"
-                    update_sql = update_sql + " where pk_period_verify='" + item[3] + "'"
+                    update_sql = update_sql + period_field_map[single_period] + "='" + str(win_pct) + "'"
+                    update_sql = update_sql + " where pk_period_verify='" + str(item[3]) + "'"
                     data_center.common_query(update_sql)
 
-                    # 此处写死吧！！！！
+                    # FIXME -- 此处写死吧！！！！
                     if single_period == 60:
                         update_sql = "update " + self.table_name + " set finished=1 where pk_period_verify="
-                        update_sql = update_sql = item[3] + "'"
+                        update_sql = update_sql + str(item[3]) + "'"
                         data_center.common_query(update_sql)

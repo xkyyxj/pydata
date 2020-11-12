@@ -70,3 +70,15 @@ class DataPull:
     def fetch_index_list(self, market):
         data = self.__pro.index_basic(market=market)
         return data
+
+    def fetch_finance_data(self, ts_code, start_date, end_date):
+        """
+        获取某只股票的财务数据
+        :param ts_code:
+        :param start_date:
+        :param end_date:
+        :return:
+        """
+        df = self.__pro.fina_indicator(ts_code=ts_code)
+        df = self.__pro.query('fina_indicator', ts_code=ts_code, start_date=start_date, end_date=end_date)
+        return df

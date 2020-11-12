@@ -1,3 +1,4 @@
+import datetime
 import sys
 
 import PySide2
@@ -64,6 +65,10 @@ class MainWindow(QtWidgets.QMainWindow):
         display.show()
         self.ui.openGLWidget.mouse_on_changed.connect(display.stock_info_changed)
 
+        # 相关按钮的初始化
+        self.ui.actionrefresh.triggered.connect(self.refresh_stock_list)
+        self.ui.actiondaily_info.triggered.connect(self.fetch_daily_info)
+
     def ana_result_type(self, table_name, table_meta):
         if table_name == 'period_verify' or table_name == 'period_verify_manual':
             rst = PeriodVerifyResult(table_meta, table_name)
@@ -72,6 +77,22 @@ class MainWindow(QtWidgets.QMainWindow):
         # rst.set_filter("where del_date is null")
         rst.init_data_from_db()
         self.table_model.set_ana_result(rst)
+
+    @staticmethod
+    def refresh_stock_list():
+        data_center = DataCenter.get_instance()
+        data_center.refresh_stock_list()
+
+    @staticmethod
+    def fetch_daily_info():
+        data_center = DataCenter.get_instance()
+        last_record_day = data_center.common_query("select trade_date from stock_base_info order by trade_date desc limit 1")
+        last_record_day = last_record_day[0][0]
+        last_record_day = datetime.date(int(last_record_day[0:4]), int(last_record_day[4:6]), int(last_record_day[6:8]))
+        last_record_day += datetime.timedelta(days=1)
+        last_record_day = last_record_day.strftime("%Y%m%d")
+        print("last record day is " + last_record_day)
+        data_center.fetch_all_daily_info_until_now(trade_date=last_record_day)
 
     def tree_node_selected(self, selected, un_selected):
         """
