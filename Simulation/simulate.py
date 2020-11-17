@@ -21,7 +21,7 @@ class MultiProcessor:
         :param judge_time: 判定时机的函数
         :return:
         """
-        cpu_num = multiprocessing.cpu_count()
+        cpu_num = multiprocessing.cpu_count() + 4
         each_cpu_load = len(stock_codes) // cpu_num
         queue = queues.Queue(20, ctx=multiprocessing)
 
@@ -146,7 +146,7 @@ class Simulate:
                 continue
             detail_trade_info = pandas.DataFrame(
                 columns=('ts_code', 'curr_close', 'trade_date', 'trade_num', 'hold_num', 'hold_mny',
-                         'total_mny'))
+                         'total_mny', 'ope_flag'))
             if len(ret_time[0]) != len(base_infos):
                 print("Not equals!!!")
             for i in range(len(ret_time[0])):
@@ -155,7 +155,7 @@ class Simulate:
                 temp_buy_pct = 0.1
                 for item in ret_time:
                     # 从当前往前5天之内是否有发出过买入信号，如果有，就算有
-                    start_index = i - self.MULTI_INDI_BETWEEN
+                    start_index = (i - self.MULTI_INDI_BETWEEN) if len(ret_time) > 1 else i
                     start_index = 0 if start_index < 0 else start_index
                     temp_val = self.DO_NOTHING
                     for j in range(start_index, i + 1):
@@ -182,6 +182,7 @@ class Simulate:
                     buy_mny = self.initial_mny * buy_pct
                     buy_mny = self.left_mny if self.left_mny < buy_mny else buy_mny
                     buy_num = buy_mny / base_infos.at[i, 'close']
+                    buy_num = buy_num // 100 * 100
                     self.hold_num = self.hold_num + buy_num
                     self.left_mny = self.left_mny - buy_mny
                     hold_mny = self.hold_num * base_infos.at[i, 'close']
@@ -193,7 +194,8 @@ class Simulate:
                         'hold_num': self.hold_num,
                         'hold_mny': hold_mny,
                         'total_mny': self.left_mny + hold_mny,
-                        'curr_close': base_infos.at[i, 'close']
+                        'curr_close': base_infos.at[i, 'close'],
+                        'ope_flag': "buy"
                     }
                     detail_trade_info = detail_trade_info.append(temp_dict, ignore_index=True)
                     trade_rst_dict['trade_times'] = trade_rst_dict['trade_times'] + 1
@@ -201,7 +203,7 @@ class Simulate:
                     # 默认卖出持仓数量的10%
                     sold_pct = temp_buy_pct
                     sold_num = self.hold_num * sold_pct
-                    sold_num = sold_num / 100 * 100
+                    sold_num = sold_num // 100 * 100
                     self.hold_num = self.hold_num - sold_num
                     sold_mny = sold_num * base_infos.at[i, 'close']
                     self.left_mny = self.left_mny + sold_mny
@@ -214,7 +216,8 @@ class Simulate:
                         'hold_num': self.hold_num,
                         'hold_mny': hold_mny,
                         'total_mny': self.left_mny + hold_mny,
-                        'curr_close': base_infos.at[i, 'close']
+                        'curr_close': base_infos.at[i, 'close'],
+                        'ope_flag': "sold"
                     }
                     detail_trade_info = detail_trade_info.append(temp_dict, ignore_index=True)
                     trade_rst_dict['trade_times'] = trade_rst_dict['trade_times'] + 1

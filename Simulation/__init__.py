@@ -1,3 +1,4 @@
+from Simulation.EMAJudge import ema_judge
 from Simulation.MACDJudge import macd_judge
 from Simulation.PeriodSimulate import single_process_period_simulate
 from Simulation.simulate import Simulate, MultiProcessor, single_cpu_core_simulate
@@ -64,3 +65,14 @@ def common_simulate_multi_process(data_center, out_dir_name, judge_time):
         stock_codes.append(stock_list[i][0])
     multi_processor = MultiProcessor(['win_num', 'lose_num'], ['max_win_pct'], ['max_lost_pct'])
     multi_processor.multi_process_simulate(stock_codes, judge_time, out_dir_name, single_cpu_core_simulate)
+
+
+def simulate_with_ema(data_center):
+    """
+    通过EMA来模拟超短线买入卖出的机制
+    :param judge_time:
+    :param out_dir_name:
+    :param data_center:
+    :return:
+    """
+    common_simulate_multi_process(data_center, 'ema_judge', (ema_judge,))

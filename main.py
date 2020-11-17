@@ -40,7 +40,7 @@ import DailyUtils.FindLowStock as FindLowStock
 # fig, ax = plt.subplots()  # Create a figure containing a single axes.
 # ax.plot([1, 2, 3, 4], [1, 4, 2, 3])  # Plot some data on the axes.
 from Selector import select_from_in_low_by_indicator
-from Simulation import period_simulate, simulate_with_macd_multi_process, simulate_with_macd_kdj
+from Simulation import period_simulate, simulate_with_macd_multi_process, simulate_with_macd_kdj, simulate_with_ema
 from Simulation.KDJJudge import kdj_judge
 from Simulation.simulate import Simulate, MultiProcessor
 
@@ -89,6 +89,26 @@ def fetch_day_index_data(stock_code, begin_date=None, end_date=None):
     if end_date is None:
         end_date = begin_date
     data_center.fetch_index_data(stock_code, begin_date=begin_date, end_date=end_date)
+
+
+def init_finance_indicator():
+    """
+    从当前年的第一天到当前天的
+    :return:
+    """
+    stock_list = data_center.fetch_stock_list()
+    end_date = datetime.datetime.now()
+    end_date = end_date.strftime("%Y%mYd")
+    for item in stock_list:
+        last_day_sql_query = "select end_date from finance_indicator where ts_code='" + item[0] + \
+                             "' order by end_date desc limit 1"
+        last_day = data_center.common_query(last_day_sql_query)
+        # last_day = last_day[0] if len(last_day) > 0 else '20100101'
+        # TODO -- 此处预处理，因为所有的数据照理都已经获取到了
+        if len(last_day) > 0:
+            continue
+        data_center.fetch_finance_indicator_from_tushare(item[0], last_day, end_date)
+        time.sleep(2)
 
 
 def fetch_all_daily_info(trade_date=None, until_now=False):
@@ -149,26 +169,23 @@ def batch_ana_stock(data_center):
 
 
 if __name__ == '__main__':
+    # 模拟进程
     # retval = data_center.common_query("select * from ana_category")
     # period_simulate(data_center)
     # simulate_with_macd_multi_process(data_center)
     # simulate_with_macd_kdj(data_center)
-    initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
-    # calculate_history_down_sync()
-    # calculate_in_low_async()
-    # fetch_base_info_daily(data_center, "20201017")
-    # select_from_in_low_by_indicator(data_center)
+    simulate_with_ema(data_center)
 
-    # toast.show_toast(title="This is a title", msg="This is a message",
-    #                  icon_path=r"C:\Program Files\Internet Explorer\images\bing.ico", duration=10)
-    # thread = threading.Thread(target=show_toast)
-    # thread.start()
-    time_fetch = TimeFetcher()
-    time_fetch()
-    history_down_ana = HistoryDownAna()
-    history_down_ana()
+    # 日用！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
-    main_windows.init_gui()
+    # # calculate_history_down_sync()
+    # # calculate_in_low_async()
+    # time_fetch = TimeFetcher()
+    # time_fetch()
+    # history_down_ana = HistoryDownAna()
+    # history_down_ana()
+    # # init_finance_indicator()
+    # main_windows.init_gui()
 
     # simulate_with_kdj()
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
