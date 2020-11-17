@@ -119,6 +119,7 @@ class Simulate:
     def __call__(self, *args, **kwargs):
         # TODO -- 看一下Python的数值计算方式，是否有小数？？？
         self.data_center = DataCenter()
+        default_ope_pct = 0.1
         final_sum_dict = {
             'win_num': 0,
             'lose_num': 0,
@@ -161,13 +162,13 @@ class Simulate:
                     for j in range(start_index, i + 1):
                         if item.at[j, 'flag'] == self.BUY_FLAG:
                             temp_val = self.BUY_FLAG
-                            temp_buy_pct = item.at[j, 'percent'] if 0 < item.at[j, 'percent'] < temp_buy_pct \
-                                else temp_buy_pct
+                            temp_buy_pct = item.at[j, 'percent'] if 0 < item.at[j, 'percent'] < default_ope_pct \
+                                else default_ope_pct
                             break
                         elif item.at[j, 'flag'] == self.SOLD_FLAG:
                             temp_val = self.SOLD_FLAG
-                            temp_buy_pct = item.at[j, 'percent'] if 0 < item.at[j, 'percent'] < temp_buy_pct \
-                                else temp_buy_pct
+                            temp_buy_pct = item.at[j, 'percent'] if 0 < item.at[j, 'percent'] < default_ope_pct \
+                                else default_ope_pct
                             break
                     if operate_flag == self.DO_NOTHING or operate_flag == temp_val:
                         operate_flag = temp_val
@@ -183,6 +184,7 @@ class Simulate:
                     buy_mny = self.left_mny if self.left_mny < buy_mny else buy_mny
                     buy_num = buy_mny / base_infos.at[i, 'close']
                     buy_num = buy_num // 100 * 100
+                    buy_mny = buy_num * base_infos.at[i, 'close']
                     self.hold_num = self.hold_num + buy_num
                     self.left_mny = self.left_mny - buy_mny
                     hold_mny = self.hold_num * base_infos.at[i, 'close']
