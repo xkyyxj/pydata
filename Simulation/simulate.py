@@ -146,7 +146,7 @@ class Simulate:
             if ret_time is None or len(ret_time) == 0:
                 continue
             detail_trade_info = pandas.DataFrame(
-                columns=('ts_code', 'curr_close', 'trade_date', 'trade_num', 'hold_num', 'hold_mny',
+                columns=('ts_code', 'curr_close', 'trade_date', 'trade_num', 'hold_num', 'hold_mny', 'left_mny',
                          'total_mny', 'ope_flag'))
             if len(ret_time[0]) != len(base_infos):
                 print("Not equals!!!")
@@ -195,6 +195,7 @@ class Simulate:
                         'trade_num': buy_num,
                         'hold_num': self.hold_num,
                         'hold_mny': hold_mny,
+                        'left_mny': self.left_mny,
                         'total_mny': self.left_mny + hold_mny,
                         'curr_close': base_infos.at[i, 'close'],
                         'ope_flag': "buy"
@@ -217,6 +218,7 @@ class Simulate:
                         'trade_num': sold_num,
                         'hold_num': self.hold_num,
                         'hold_mny': hold_mny,
+                        'left_mny': self.left_mny,
                         'total_mny': self.left_mny + hold_mny,
                         'curr_close': base_infos.at[i, 'close'],
                         'ope_flag': "sold"
