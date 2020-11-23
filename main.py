@@ -17,6 +17,8 @@ import Output.FileOutput as FileOutput
 from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 import time
 from win10toast import ToastNotifier
+
+from Algorithm.IndicatorCalculation import initialize_ema
 from GUI import *
 import ui_config.icons
 from stock_py import initialize
@@ -175,6 +177,7 @@ if __name__ == '__main__':
     # simulate_with_macd_multi_process(data_center)
     # simulate_with_macd_kdj(data_center)
     # simulate_with_ema(data_center)
+    # initialize_ema()
 
     # 日用！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
