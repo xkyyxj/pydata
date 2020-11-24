@@ -18,7 +18,7 @@ from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 import time
 from win10toast import ToastNotifier
 
-from Algorithm.IndicatorCalculation import initialize_ema
+from Algorithm.IndicatorCalculation import initialize_ema, append_cal_ema
 from GUI import *
 import ui_config.icons
 from stock_py import initialize
@@ -27,6 +27,7 @@ from stock_py import HistoryDownAna
 from stock_py import calculate_in_low_sync
 from stock_py import calculate_in_low_async
 from stock_py import calculate_history_down_sync
+from stock_py import ShortTimeStrategy
 
 import Algorithm.Verify as Verify
 import redis
@@ -181,12 +182,15 @@ if __name__ == '__main__':
 
     # 日用！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
+    append_cal_ema()
     # calculate_history_down_sync()
     # calculate_in_low_async()
-    time_fetch = TimeFetcher()
-    time_fetch()
-    history_down_ana = HistoryDownAna()
-    history_down_ana()
+    # time_fetch = TimeFetcher()
+    # time_fetch()
+    # history_down_ana = HistoryDownAna()
+    # history_down_ana()
+    # short_time = ShortTimeStrategy()
+    # short_time()
     # init_finance_indicator()
     main_windows.init_gui()
 

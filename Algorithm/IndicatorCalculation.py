@@ -55,11 +55,11 @@ def append_cal_ema():
     data_center = DataCenter.get_instance()
     stock_list = data_center.fetch_stock_list()
     for item in stock_list:
-        ema_last_info_query = "select * from ema_value where ts_code='" + item + "' order by trade_date desc limit 1"
-        ema_last_day_info = data_center.common_query(ema_last_info_query)
+        ema_last_info_query = "select * from ema_value where ts_code='" + item[0] + "' order by trade_date desc limit 1"
+        ema_last_day_info = data_center.common_query_to_pandas(ema_last_info_query)
         # 如果表里面没有值，那么就直接初始化计算一次好了
         if ema_last_day_info is None or len(ema_last_day_info) == 0:
-            initialize_ema_one(data_center, item)
+            initialize_ema_one(data_center, item[0])
             continue
 
         # 增补计算逻辑
@@ -71,7 +71,7 @@ def append_cal_ema():
         column_list.append("ema_40")
         write_data_frame = pandas.DataFrame(columns=tuple(column_list))
         # 查询出所有的大于ema_last_day_date的股票基本信息
-        query_sql = "select ts_code, trade_date, close from stock_base_info where ts_code='" + item + "'"
+        query_sql = "select ts_code, trade_date, close from stock_base_info where ts_code='" + item[0] + "'"
         query_sql = query_sql + " and trade_date > '" + ema_last_day_info.at[0, 'trade_date'] + "' order by trade_date"
         base_infos = data_center.common_query_to_pandas(query_sql)
         if base_infos is None or base_infos.empty:
@@ -79,7 +79,7 @@ def append_cal_ema():
 
         for i in range(len(base_infos)):
             temp_dict = {
-                "ts_code": item,
+                "ts_code": item[0],
             }
             curr_close = base_infos.at[i, 'close']
             temp_dict['trade_date'] = base_infos.at[i, 'trade_date']
@@ -94,7 +94,7 @@ def append_cal_ema():
             temp_dict["ema_35"] = cal_ema_single_day(last_ema_val, curr_close, 35)
             temp_dict["ema_40"] = cal_ema_single_day(last_ema_val, curr_close, 40)
             write_data_frame = write_data_frame.append(temp_dict, ignore_index=True)
-            data_center.common_write_data_frame(write_data_frame, 'ema_value')
+        data_center.common_write_data_frame(write_data_frame, 'ema_value')
 
 
 def cal_ema_single_day(last_day_ema, last_day_close, ema_length):
