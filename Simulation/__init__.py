@@ -1,3 +1,4 @@
+from Simulation.DayJudge import days_judge
 from Simulation.EMAJudge import ema_judge
 from Simulation.MACDJudge import macd_judge
 from Simulation.PeriodSimulate import single_process_period_simulate
@@ -76,3 +77,14 @@ def simulate_with_ema(data_center):
     :return:
     """
     common_simulate_multi_process(data_center, 'ema_judge', (ema_judge,))
+
+
+def simulate_with_days(data_center):
+    """
+    通过简单上涨下降天数来模拟买入卖出的机制
+    :param judge_time:
+    :param out_dir_name:
+    :param data_center:
+    :return:
+    """
+    common_simulate_multi_process(data_center, 'days_judge', (days_judge,))

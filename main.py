@@ -23,11 +23,9 @@ from GUI import *
 import ui_config.icons
 from stock_py import initialize
 from stock_py import TimeFetcher
-from stock_py import HistoryDownAna
-from stock_py import calculate_in_low_sync
-from stock_py import calculate_in_low_async
+from stock_py import calculate_all_sync
 from stock_py import calculate_history_down_sync
-from stock_py import ShortTimeStrategy
+from stock_py import CommonSelectStrategy
 
 import Algorithm.Verify as Verify
 import redis
@@ -43,7 +41,8 @@ import DailyUtils.FindLowStock as FindLowStock
 # fig, ax = plt.subplots()  # Create a figure containing a single axes.
 # ax.plot([1, 2, 3, 4], [1, 4, 2, 3])  # Plot some data on the axes.
 from Selector import select_from_in_low_by_indicator
-from Simulation import period_simulate, simulate_with_macd_multi_process, simulate_with_macd_kdj, simulate_with_ema
+from Simulation import period_simulate, simulate_with_macd_multi_process, simulate_with_macd_kdj, simulate_with_ema, \
+    simulate_with_days
 from Simulation.KDJJudge import kdj_judge
 from Simulation.simulate import Simulate, MultiProcessor
 
@@ -127,7 +126,7 @@ def fetch_all_daily_info(trade_date=None, until_now=False):
         trade_date = trade_date.strftime("%Y%m%d")
         data_center.fetch_all_base_one_day(trade_date=trade_date)
     else:
-        now_time = datetime.datetime.now()
+        now_time = datetime.datetimeshort_time_select.now()
         now_date = now_time.strftime("%Y%m%d")
         temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
         if trade_date < now_date and until_now:
@@ -178,17 +177,22 @@ if __name__ == '__main__':
     # simulate_with_macd_multi_process(data_center)
     # simulate_with_macd_kdj(data_center)
     # simulate_with_ema(data_center)
+    # simulate_with_days(data_center)
     # initialize_ema()
 
+    # 查找类--日用
+    # Calculator.find_period_max_win(data_center, 5)
+
     # 日用！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-    initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
-    append_cal_ema()
+    initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://192.168.218.128/")
+    # calculate_all_sync()
+    # append_cal_ema()
     # calculate_history_down_sync()
     # calculate_in_low_async()
-    # time_fetch = TimeFetcher()
-    # time_fetch()
-    # history_down_ana = HistoryDownAna()
-    # history_down_ana()
+    time_fetch = TimeFetcher()
+    time_fetch()
+    selector = CommonSelectStrategy()
+    selector()
     # short_time = ShortTimeStrategy()
     # short_time()
     # init_finance_indicator()

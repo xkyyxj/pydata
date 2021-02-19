@@ -11,6 +11,7 @@ import Data.DataPull
 import redis
 import json
 import Algorithm.Calculator as Calculator
+from Algorithm.IndicatorCalculation import append_cal_ema
 
 
 class DataCenter:
@@ -18,7 +19,7 @@ class DataCenter:
     def __init__(self):
         self.__database = Data.Database.MySQLDB()
         self.__datapull = Data.DataPull.DataPull()
-        self.__redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379)
+        self.__redis_pool = redis.ConnectionPool(host='192.168.218.128', port=6379)
         self.__fetch_data_time = 0
 
     @staticmethod
@@ -381,6 +382,7 @@ class DataCenter:
             trade_date = datetime.datetime.now()
             trade_date = trade_date.strftime("%Y%m%d")
             self.fetch_all_base_one_day(trade_date=trade_date)
+            append_cal_ema()
         else:
             now_time = datetime.datetime.now()
             now_date = now_time.strftime("%Y%m%d")
@@ -398,6 +400,7 @@ class DataCenter:
             temp_adj_factor = self.fetch_adj_factor_until_now(trade_date=origin_trade_date)
             # 将数据更新到Redis缓存当中
             self.modify_redis_data_frame(trade_date, temp_base_info=temp_base_info, temp_adj_factor=temp_adj_factor)
+            append_cal_ema()
 
     def fetch_adj_factor_until_now(self, trade_date, until_now=True):
         """

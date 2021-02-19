@@ -1,7 +1,8 @@
 import pandas
 
-from Data.DataCenter import DataCenter
 import pandas_ta as ta
+
+import Data
 
 
 def initialize_ema():
@@ -9,7 +10,7 @@ def initialize_ema():
     初始化ema指标，然后存储到ema_value这张表里面
     :return:
     """
-    data_center = DataCenter.get_instance()
+    data_center = Data.DataCenter.DataCenter.get_instance()
     all_stock_list = data_center.fetch_stock_list()
     for item in all_stock_list:
         initialize_ema_one(data_center, item[0])
@@ -52,7 +53,7 @@ def append_cal_ema():
     增量计算ema的值
     :return:
     """
-    data_center = DataCenter.get_instance()
+    data_center = Data.DataCenter.DataCenter.get_instance()
     stock_list = data_center.fetch_stock_list()
     for item in stock_list:
         ema_last_info_query = "select * from ema_value where ts_code='" + item[0] + "' order by trade_date desc limit 1"
