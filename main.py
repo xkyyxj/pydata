@@ -16,9 +16,8 @@ import Algorithm.Calculator as Calculator
 import Output.FileOutput as FileOutput
 from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 import time
-from win10toast import ToastNotifier
 
-from Algorithm.IndicatorCalculation import initialize_ema, append_cal_ema
+from Algorithm.IndicatorCalculation import initialize_vol_ema, initialize_ema
 from GUI import *
 import ui_config.icons
 from stock_py import initialize
@@ -178,25 +177,26 @@ if __name__ == '__main__':
     # simulate_with_macd_kdj(data_center)
     # simulate_with_ema(data_center)
     # simulate_with_days(data_center)
-    # initialize_ema()
+    initialize_ema()
+    # initialize_vol_ema()
 
     # 查找类--日用
     # Calculator.find_period_max_win(data_center, 5)
 
     # 日用！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-    initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://192.168.218.128/")
+    # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://192.168.218.128/")
     # calculate_all_sync()
     # append_cal_ema()
     # calculate_history_down_sync()
     # calculate_in_low_async()
-    time_fetch = TimeFetcher()
-    time_fetch()
-    selector = CommonSelectStrategy()
-    selector()
+    # time_fetch = TimeFetcher()
+    # time_fetch()
+    # selector = CommonSelectStrategy()
+    # selector()
     # short_time = ShortTimeStrategy()
     # short_time()
     # init_finance_indicator()
-    main_windows.init_gui()
+    # main_windows.init_gui()
 
     # simulate_with_kdj()
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
