@@ -104,10 +104,10 @@ def init_finance_indicator():
         last_day_sql_query = "select end_date from finance_indicator where ts_code='" + item[0] + \
                              "' order by end_date desc limit 1"
         last_day = data_center.common_query(last_day_sql_query)
-        # last_day = last_day[0] if len(last_day) > 0 else '20100101'
+        last_day = last_day[0] if len(last_day) > 0 else '20100101'
         # TODO -- 此处预处理，因为所有的数据照理都已经获取到了
-        if len(last_day) > 0:
-            continue
+        # if len(last_day) > 0:
+        #     continue
         data_center.fetch_finance_indicator_from_tushare(item[0], last_day, end_date)
         time.sleep(2)
 
@@ -177,7 +177,7 @@ if __name__ == '__main__':
     # simulate_with_macd_kdj(data_center)
     # simulate_with_ema(data_center)
     # simulate_with_days(data_center)
-    initialize_ema()
+    # initialize_ema()
     # initialize_vol_ema()
 
     # 查找类--日用
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     # selector()
     # short_time = ShortTimeStrategy()
     # short_time()
-    # init_finance_indicator()
+    init_finance_indicator()
     # main_windows.init_gui()
 
     # simulate_with_kdj()
