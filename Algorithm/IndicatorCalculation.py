@@ -36,7 +36,7 @@ def initialize_ema_one(data_center, ts_code):
     query_close_sql = query_close_sql + ts_code + "'"
     base_info_data = data_center.common_query_to_pandas(query_close_sql)
     close_series = base_info_data['close']
-    if close_series is None or len(close_series) < 40:
+    if close_series is None or len(close_series) < 60:
         return
     # 对每个ema长度做计算
     write_data_frame = pandas.DataFrame(columns=())

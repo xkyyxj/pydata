@@ -19,7 +19,7 @@ class DataCenter:
     def __init__(self):
         self.__database = Data.Database.MySQLDB()
         self.__datapull = Data.DataPull.DataPull()
-        self.__redis_pool = redis.ConnectionPool(host='192.168.218.128', port=6379)
+        self.__redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379)
         self.__fetch_data_time = 0
 
     @staticmethod

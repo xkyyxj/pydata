@@ -25,6 +25,7 @@ from stock_py import TimeFetcher
 from stock_py import calculate_all_sync
 from stock_py import calculate_history_down_sync
 from stock_py import CommonSelectStrategy
+from stock_py import TrackSoldStrategy
 
 import Algorithm.Verify as Verify
 import redis
@@ -184,19 +185,22 @@ if __name__ == '__main__':
     # Calculator.find_period_max_win(data_center, 5)
 
     # 日用！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-    # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://192.168.218.128/")
+    initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
     # calculate_all_sync()
     # append_cal_ema()
     # calculate_history_down_sync()
     # calculate_in_low_async()
-    # time_fetch = TimeFetcher()
-    # time_fetch()
-    # selector = CommonSelectStrategy()
-    # selector()
+    time_fetch = TimeFetcher()
+    time_fetch()
+    selector = CommonSelectStrategy()
+    selector()
+    track_sold = TrackSoldStrategy()
+    track_sold()
+
     # short_time = ShortTimeStrategy()
     # short_time()
-    init_finance_indicator()
-    # main_windows.init_gui()
+    # init_finance_indicator()
+    main_windows.init_gui()
 
     # simulate_with_kdj()
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
