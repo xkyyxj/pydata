@@ -18,19 +18,20 @@ from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 import time
 
 from Algorithm.IndicatorCalculation import initialize_vol_ema, initialize_ema
-from GUI import *
-import ui_config.icons
-from stock_py import initialize
-from stock_py import TimeFetcher
-from stock_py import calculate_all_sync
-from stock_py import calculate_history_down_sync
-from stock_py import CommonSelectStrategy
-from stock_py import TrackSoldStrategy
+# from GUI import *
+# import ui_config.icons
+# from stock_py import initialize
+# from stock_py import TimeFetcher
+# from stock_py import calculate_all_sync
+# from stock_py import calculate_history_down_sync
+# from stock_py import CommonSelectStrategy
+# from stock_py import TrackSoldStrategy
 
 import Algorithm.Verify as Verify
-import redis
+# import redis
 import json
 import DailyUtils.FindLowStock as FindLowStock
+from DailyUtils import FindUp
 
 # test pandas to_json and read_json
 # d = {'col1': [1, 2], 'col2': [3, 4]}
@@ -69,6 +70,61 @@ analyzer = IndicatorAnalyzer(data_center)
 #     result = Calculator.find_has_up_some(data_center)
 #     print(result.to_json(orient='values'))
 
+def hist_print():
+    data = np.random.randn(12000)
+    pandas_s = pandas.Series(data)
+    plt.hist(pandas_s, bins=30, color='skyblue', alpha=0.7)
+
+    # 添加标题和标签
+    plt.title('Histogram Example')
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+
+    # 显示图表
+    plt.show()
+
+
+def analyze1(begin_date, end_date):
+    data = {
+        'name': ['Alice', 'Bob', 'Charlie', 'Alice', 'Bob'],
+        'age': [25, 30, 35, 25, 31],
+        'score': [85, 92, 78, 90, 88]
+    }
+    df = pandas.DataFrame(data)
+
+    all_data = data_center.fetch_all_base_range_no_tushare(begin_date, end_date)
+    all_data['next_close'] = all_data['close'].shift(1)
+    all_data['next_pct'] = (all_data['next_close'] - all_data['close']) / all_data['close']
+    first_day_close = all_data.iloc[all_data.groupby('ts_code')['trade_date'].idxmin()][['ts_code','close']]
+    all_data = pandas.merge(all_data, first_day_close, on='ts_code', how='left', suffixes=('', '_first'))
+    all_data = all_data.set_index('ts_code')
+    group_by_close = all_data.groupby('ts_code')['close']
+    max_price = group_by_close.max()
+    min_price = group_by_close.min()
+    # max_price = max_price.rename(columns={'close': 'max_close'})
+    final_data = pandas.merge(all_data, max_price, on = 'ts_code', how = 'left')
+    final_data['final_win_pct'] = (final_data['close_x'] - final_data['close_first']) / final_data['close_x']
+
+    # statistics - last day win_pct
+    final_win_pct = final_data[['final_win_pct', 'trade_date']]
+    final_win_pct = final_win_pct.reset_index()
+    # 下面这行代码如果要生效必须先调用上面的reset_index，否则idxmax方法返回的索引就是ts_code列， 导致iloc会返回所有的数据
+    final_win_pct = final_win_pct.iloc[final_win_pct.groupby('ts_code')['trade_date'].idxmax()]
+    final_win_pct = final_win_pct['final_win_pct']
+    # final_win_pct.groupby('ts_code').idxmax('trade_date')
+    # final_win_pct = final_win_pct.groupby('ts_code')['final_win_pct'].max()
+    # 绘制直方图
+    plt.hist(final_win_pct, bins=40, color='skyblue', alpha=0.7)
+
+    # 添加标题和标签
+    plt.title('Histogram Example')
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+
+    # 显示图表
+    plt.show()
+    # final_data.groupby('ts_code').max()['']
+    print('adsfasdf')
 
 def get_max_up_stock(up_days=2):
     result = Calculator.get_max_up_stock(data_center, up_days=up_days)
@@ -171,6 +227,14 @@ def batch_ana_stock(data_center):
 
 
 if __name__ == '__main__':
+    print("starting")
+    # analyze1('20250401', '20250430'))
+    # hist_print()
+    # result = FindUp.find_has_up_by_windows(data_center, 10)
+    # FileOutput.csv_output(None, result, 'up_by_window.csv')
+
+    result = FindUp.find_has_up_by_percent(data_center, 10, 0.1)
+    FileOutput.csv_output(None, result, 'up_by_pct_2025-09-01.csv')
     # 模拟进程
     # retval = data_center.common_query("select * from ana_category")
     # period_simulate(data_center)
@@ -185,22 +249,22 @@ if __name__ == '__main__':
     # Calculator.find_period_max_win(data_center, 5)
 
     # 日用！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-    initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
+    # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")
     # calculate_all_sync()
     # append_cal_ema()
     # calculate_history_down_sync()
     # calculate_in_low_async()
-    time_fetch = TimeFetcher()
-    time_fetch()
-    selector = CommonSelectStrategy()
-    selector()
-    track_sold = TrackSoldStrategy()
-    track_sold()
+    # time_fetch = TimeFetcher()
+    # time_fetch()
+    # selector = CommonSelectStrategy()
+    # selector()
+    # track_sold = TrackSoldStrategy()
+    # track_sold()
 
     # short_time = ShortTimeStrategy()
     # short_time()
     # init_finance_indicator()
-    main_windows.init_gui()
+    # main_windows.init_gui()
 
     # simulate_with_kdj()
     # initialize(mysql="mysql://root:123@localhost:3306/stock", redis="redis://127.0.0.1/")

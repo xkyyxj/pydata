@@ -8,7 +8,7 @@ import time
 import pandas
 import Data.Database
 import Data.DataPull
-import redis
+# import redis
 import json
 import Algorithm.Calculator as Calculator
 from Algorithm.IndicatorCalculation import append_cal_ema
@@ -19,7 +19,7 @@ class DataCenter:
     def __init__(self):
         self.__database = Data.Database.MySQLDB()
         self.__datapull = Data.DataPull.DataPull()
-        self.__redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379)
+        # self.__redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379)
         self.__fetch_data_time = 0
 
     @staticmethod
@@ -33,124 +33,124 @@ class DataCenter:
     def get_fetch_data_time(self):
         return self.__fetch_data_time
 
-    def write_data_frame_to_redis(self, base_info):
-        """
-        将DataFrame写入到Redis缓存当中
-        调用DataFrame的to_msgpack方法，获取相应的字符串作为value，key值为stock_code
-        :param base_info: 股票基本信息，类型为DataFrame
-        :return:
-        """
-        if base_info is None or len(base_info) <= 0:
-            return
-        redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
-        pipe_line = redis_conn.pipeline(transaction=False)
-        # all_value = base_info.to_msgpack() # old version of pandas
-        all_value = base_info.to_json(orient='table')
+    # def write_data_frame_to_redis(self, base_info):
+    #     """
+    #     将DataFrame写入到Redis缓存当中
+    #     调用DataFrame的to_msgpack方法，获取相应的字符串作为value，key值为stock_code
+    #     :param base_info: 股票基本信息，类型为DataFrame
+    #     :return:
+    #     """
+    #     if base_info is None or len(base_info) <= 0:
+    #         return
+    #     redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
+    #     pipe_line = redis_conn.pipeline(transaction=False)
+    #     # all_value = base_info.to_msgpack() # old version of pandas
+    #     all_value = base_info.to_json(orient='table')
+    #
+    #     # 构建缓存的key值
+    #     key = base_info.at[0, 'ts_code']
+    #     pipe_line.set(key, all_value)
+    #     pipe_line.execute()
 
-        # 构建缓存的key值
-        key = base_info.at[0, 'ts_code']
-        pipe_line.set(key, all_value)
-        pipe_line.execute()
+    # def get_data_frame_from_redis(self, stock_code):
+    #     """
+    #     从redis缓存当中获取到相应的DataFrame
+    #     :param stock_code:
+    #     :return:
+    #     """
+    #     redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
+    #     value = redis_conn.get(stock_code)
+    #     ret_value = pandas.DataFrame()
+    #     if value is not None and len(value) > 0:
+    #         # ret_value = pandas.read_msgpack(value) # old version of pandas
+    #         ret_value = pandas.read_json(value, orient='table')
+    #     return ret_value
 
-    def get_data_frame_from_redis(self, stock_code):
-        """
-        从redis缓存当中获取到相应的DataFrame
-        :param stock_code:
-        :return:
-        """
-        redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
-        value = redis_conn.get(stock_code)
-        ret_value = pandas.DataFrame()
-        if value is not None and len(value) > 0:
-            # ret_value = pandas.read_msgpack(value) # old version of pandas
-            ret_value = pandas.read_json(value, orient='table')
-        return ret_value
+    # def write_one_day_info_to_redis(self, base_info, add_type='after'):
+    #     if base_info is None or len(base_info) <= 0:
+    #         return
+    #     redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
+    #     pipe_line = redis_conn.pipeline(transaction=False)
+    #     all_value = base_info.values
+    #
+    #     if add_type == 'after':
+    #         for i in range(all_value.shape[0]):
+    #             temp_value = all_value[i]
+    #             temp_series = pandas.Series(temp_value, index=base_info.columns)
+    #             write_json = temp_series.to_json()
+    #             pipe_line.rpush(temp_series['ts_code'], write_json)
+    #     else:
+    #         for i in range(all_value.shape[0]):
+    #             temp_value = all_value[i]
+    #             temp_series = pandas.Series(temp_value, index=base_info.columns)
+    #             write_json = temp_series.to_json()
+    #             pipe_line.lpush(temp_series['ts_code'], write_json)
+    #     pipe_line.execute()
 
-    def write_one_day_info_to_redis(self, base_info, add_type='after'):
-        if base_info is None or len(base_info) <= 0:
-            return
-        redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
-        pipe_line = redis_conn.pipeline(transaction=False)
-        all_value = base_info.values
-
-        if add_type == 'after':
-            for i in range(all_value.shape[0]):
-                temp_value = all_value[i]
-                temp_series = pandas.Series(temp_value, index=base_info.columns)
-                write_json = temp_series.to_json()
-                pipe_line.rpush(temp_series['ts_code'], write_json)
-        else:
-            for i in range(all_value.shape[0]):
-                temp_value = all_value[i]
-                temp_series = pandas.Series(temp_value, index=base_info.columns)
-                write_json = temp_series.to_json()
-                pipe_line.lpush(temp_series['ts_code'], write_json)
-        pipe_line.execute()
-
-    def write_base_info_to_redis(self, stock_code, base_info, add_type='after'):
-        """
-        将股票的基本信息写入到redis缓存当中
-        此方法不推荐使用，因为python的JSON格式化字符串太慢了，以至于比直接从数据库当中取数据还慢
-        :param stock_code:
-        :param base_info:
-        :param add_type:
-        :return:
-        """
-        if base_info is None or len(base_info) <= 0:
-            return
-        redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
-        pipe_line = redis_conn.pipeline(transaction=False)
-        all_value = base_info.values
-
-        # 判定一下数据是否存在于redis缓存当中
-        rdc = redis.StrictRedis(connection_pool=self.__redis_pool)
-        list_len = rdc.llen(stock_code)
-        temp_value = rdc.lrange(stock_code, list_len - 1, -1)
-        last_info = None
-        if len(temp_value) > 0:
-            last_info = json.loads(temp_value[0])
-        if last_info is not None and last_info['trade_date'] == base_info.at[0, 'trade_date']:
-            return
-        if add_type == 'after':
-            for i in range(all_value.shape[0]):
-                temp_value = all_value[i]
-                temp_series = pandas.Series(temp_value, index=base_info.columns)
-                write_json = temp_series.to_json()
-                pipe_line.rpush(stock_code, write_json)
-        else:
-            for i in range(all_value.shape[0]):
-                temp_value = all_value[i]
-                temp_series = pandas.Series(temp_value, index=base_info.columns)
-                write_json = temp_series.to_json()
-                pipe_line.lpush(stock_code, write_json)
-        pipe_line.execute()
-
-    def get_base_info_from_redis(self, stock_code, begin_date='20180101', end_date='201812313'):
-        """
-        从redis缓存当中取到所有的数据然后解析成DataFrame
-        最终的返回数据会根据@param begin_date和@param end_date进行一下过滤
-        :param stock_code:
-        :param begin_date:
-        :param end_date:
-        :return:
-        """
-        start_time = datetime.datetime.now()
-        ret_value = pandas.DataFrame()
-        redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
-        all_json = redis_conn.lrange(stock_code, 0, -1)
-        if all_json is None or len(all_json) <= 0:
-            return ret_value
-        temp_obj = json.loads(all_json[0])
-        ret_value = pandas.DataFrame(columns=temp_obj.keys())
-        ret_value.append(temp_obj, ignore_index=True)
-        for i in range(1, len(all_json)):
-            temp_obj = json.loads(all_json[i])
-            ret_value.append(temp_obj, ignore_index=True)
-        ret_value = ret_value[(end_date > ret_value['trade_date']) & (ret_value['trade_date'] > begin_date)]
-        end_time = datetime.datetime.now()
-        delta_time = (end_time - start_time).seconds
-        self.__fetch_data_time += delta_time
-        return ret_value
+    # def write_base_info_to_redis(self, stock_code, base_info, add_type='after'):
+    #     """
+    #     将股票的基本信息写入到redis缓存当中
+    #     此方法不推荐使用，因为python的JSON格式化字符串太慢了，以至于比直接从数据库当中取数据还慢
+    #     :param stock_code:
+    #     :param base_info:
+    #     :param add_type:
+    #     :return:
+    #     """
+    #     if base_info is None or len(base_info) <= 0:
+    #         return
+    #     redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
+    #     pipe_line = redis_conn.pipeline(transaction=False)
+    #     all_value = base_info.values
+    #
+    #     # 判定一下数据是否存在于redis缓存当中
+    #     rdc = redis.StrictRedis(connection_pool=self.__redis_pool)
+    #     list_len = rdc.llen(stock_code)
+    #     temp_value = rdc.lrange(stock_code, list_len - 1, -1)
+    #     last_info = None
+    #     if len(temp_value) > 0:
+    #         last_info = json.loads(temp_value[0])
+    #     if last_info is not None and last_info['trade_date'] == base_info.at[0, 'trade_date']:
+    #         return
+    #     if add_type == 'after':
+    #         for i in range(all_value.shape[0]):
+    #             temp_value = all_value[i]
+    #             temp_series = pandas.Series(temp_value, index=base_info.columns)
+    #             write_json = temp_series.to_json()
+    #             pipe_line.rpush(stock_code, write_json)
+    #     else:
+    #         for i in range(all_value.shape[0]):
+    #             temp_value = all_value[i]
+    #             temp_series = pandas.Series(temp_value, index=base_info.columns)
+    #             write_json = temp_series.to_json()
+    #             pipe_line.lpush(stock_code, write_json)
+    #     pipe_line.execute()
+    #
+    # def get_base_info_from_redis(self, stock_code, begin_date='20180101', end_date='201812313'):
+    #     """
+    #     从redis缓存当中取到所有的数据然后解析成DataFrame
+    #     最终的返回数据会根据@param begin_date和@param end_date进行一下过滤
+    #     :param stock_code:
+    #     :param begin_date:
+    #     :param end_date:
+    #     :return:
+    #     """
+    #     start_time = datetime.datetime.now()
+    #     ret_value = pandas.DataFrame()
+    #     redis_conn = redis.StrictRedis(connection_pool=self.__redis_pool)
+    #     all_json = redis_conn.lrange(stock_code, 0, -1)
+    #     if all_json is None or len(all_json) <= 0:
+    #         return ret_value
+    #     temp_obj = json.loads(all_json[0])
+    #     ret_value = pandas.DataFrame(columns=temp_obj.keys())
+    #     ret_value.append(temp_obj, ignore_index=True)
+    #     for i in range(1, len(all_json)):
+    #         temp_obj = json.loads(all_json[i])
+    #         ret_value.append(temp_obj, ignore_index=True)
+    #     ret_value = ret_value[(end_date > ret_value['trade_date']) & (ret_value['trade_date'] > begin_date)]
+    #     end_time = datetime.datetime.now()
+    #     delta_time = (end_time - start_time).seconds
+    #     self.__fetch_data_time += delta_time
+    #     return ret_value
 
     def fetch_index_data(self, index_code, begin_date="20180101", end_date="20181231"):
         """
@@ -160,9 +160,7 @@ class DataCenter:
         :param end_date:
         :return:
         """
-        local_data = self.get_base_info_from_redis(index_code, begin_date, end_date)
-        if local_data.empty:
-            local_data = self.__database.fetch_index_daily_info(index_code, begin_date, end_date)
+        local_data = self.__database.fetch_index_daily_info(index_code, begin_date, end_date)
 
         if local_data.size == 0:
             # 每当获取数据的时候，从tushare上直接获取整年的数据
@@ -233,9 +231,7 @@ class DataCenter:
         :param end_date:
         :return:
         """
-        local_data = self.get_data_frame_from_redis(stock_code)
-        if local_data.empty:
-            local_data = self.__database.fetch_daily_info(stock_code, begin_date, end_date)
+        local_data = self.__database.fetch_daily_info(stock_code, begin_date, end_date)
 
         if local_data.size == 0:
             # 每当获取数据的时候，从tushare上直接获取整年的数据
@@ -251,7 +247,7 @@ class DataCenter:
                 temp_end_date = temp_end_date.strftime("%Y%m%d")
             ret_value = self.__datapull.pull_data(stock_code, temp_begin_date, temp_end_date)
             self.__database.write_stock_info(ret_value)
-            self.write_base_info_to_redis(stock_code, ret_value)
+            # self.write_base_info_to_redis(stock_code, ret_value)
         else:
             ret_value = local_data
             ret_value.sort_index(axis=1)
@@ -367,6 +363,28 @@ class DataCenter:
         local_data = self.__database.fetch_adj_factor_by_code_date(ts_code, begin_date, end_date)
         return local_data
 
+    def fetch_base_until_now_no_tushare(self, begin_date='202250805'):
+        """
+        从数据库当中获取从指定日期开始到现在的数据，不从tushare当中获取数据
+        """
+        sql = 'select ts_code, close, trade_date, pct_chg from stock_base_info where trade_date > \'' + begin_date + '\''
+        stock_base_info_pandas = self.__database.common_query_to_pandas(sql)
+        sql = 'select ts_code, close, trade_date, pct_chg from stock_index_baseinfo where trade_date >  \'' + begin_date + '\''
+        index_daily_padas = self.__database.common_query_to_pandas(sql)
+        return pandas.concat([stock_base_info_pandas, index_daily_padas], axis=0)
+
+    def fetch_all_base_range_no_tushare(self, begin_date, end_date):
+        """
+        从数据库获取所有的基本日线信息，不从tushare当中获取数据
+        """
+        if begin_date is None or end_date is None:
+            raise RuntimeError('fetch_all_base_range_no_tushare 参数必传')
+        sql = 'select ts_code, close, trade_date from stock_base_info where trade_date >= \'' + begin_date + '\' and trade_date <= \'' + end_date + '\''
+        stock_base_info_pandas = self.__database.common_query_to_pandas(sql)
+        sql = 'select ts_code, close, trade_date from stock_index_baseinfo where trade_date >=  \'' + begin_date + '\' and trade_date <= \'' + end_date + '\''
+        index_daily_padas = self.__database.common_query_to_pandas(sql)
+        return pandas.concat([stock_base_info_pandas, index_daily_padas], axis=0)
+
     def fetch_all_daily_info_until_now(self, trade_date, until_now=True):
         """
         按天获取所有的股票的信息，如果是@param until_now为True的话，那么一直获取到当天为止
@@ -381,7 +399,7 @@ class DataCenter:
         if trade_date is None:
             trade_date = datetime.datetime.now()
             trade_date = trade_date.strftime("%Y%m%d")
-            self.fetch_all_base_one_day(trade_date=trade_date)
+            # self.fetch_all_base_one_day(trade_date=trade_date)
             append_cal_ema()
         else:
             now_time = datetime.datetime.now()
@@ -399,7 +417,7 @@ class DataCenter:
                     trade_date = temp_date.strftime("%Y%m%d")
             temp_adj_factor = self.fetch_adj_factor_until_now(trade_date=origin_trade_date)
             # 将数据更新到Redis缓存当中
-            self.modify_redis_data_frame(trade_date, temp_base_info=temp_base_info, temp_adj_factor=temp_adj_factor)
+            # self.modify_redis_data_frame(trade_date, temp_base_info=temp_base_info, temp_adj_factor=temp_adj_factor)
             append_cal_ema()
 
     def fetch_adj_factor_until_now(self, trade_date, until_now=True):
@@ -541,20 +559,16 @@ class DataCenter:
         if end_date is None:
             end_date = datetime.datetime.now()
             end_date = end_date.strftime("%Y%m%d")
-        data = self.get_data_frame_from_redis(stock_code)
-        if data is None or len(data) == 0:
-            # 发现有一种奇怪的情况：某些情况下Redis缓存当中没有相关的数据，所以直接从数据库取出来的数据没有
-            # 后复权价格，导致程序崩溃，所以此处重新计算一下并将其写入到Redis当中
-            data = self.__database.fetch_daily_info(stock_code, start_date=begin_date, end_date=end_date)
-            if data is not None and not data.empty:
-                data = data.sort_values(by=['trade_date'])
-                adj_factor = self.fetch_adj_factor_pure_database(stock_code,
-                                                                 begin_date=data.at[0, 'trade_date'],
-                                                                 end_date=data.at[
-                                                                     len(data) - 1, 'trade_date'])
-                data['adj_factor'] = adj_factor['adj_factor']
-                data['af_close'] = data['close'] * adj_factor['adj_factor']
-                self.write_data_frame_to_redis(data)
+        # 后复权价格，导致程序崩溃，所以此处重新计算一下并将其写入到Redis当中
+        data = self.__database.fetch_daily_info(stock_code, start_date=begin_date, end_date=end_date)
+        if data is not None and not data.empty:
+            data = data.sort_values(by=['trade_date'])
+            adj_factor = self.fetch_adj_factor_pure_database(stock_code,
+                                                             begin_date=data.at[0, 'trade_date'],
+                                                             end_date=data.at[
+                                                                 len(data) - 1, 'trade_date'])
+            data['adj_factor'] = adj_factor['adj_factor']
+            data['af_close'] = data['close'] * adj_factor['adj_factor']
 
         # 做下过滤
         data = data[(data['trade_date'] >= begin_date) & (data['trade_date'] <= end_date)]
