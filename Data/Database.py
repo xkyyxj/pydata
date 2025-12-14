@@ -11,9 +11,9 @@ from sqlalchemy import create_engine
 
 class MySQLDB:
     def __init__(self):
-        self.__con = pymysql.connect(host="localhost", user="root", password="123qwe", database="stock")
+        self.__con = pymysql.connect(host="localhost", user="root", password="ufida123qwe!Q", database="stock")
         self.__con.autocommit(True)
-        self.__engine = create_engine('mysql+mysqlconnector://root:123qwe@localhost:3306/stock')
+        self.__engine = create_engine('mysql+mysqlconnector://root:ufida123qwe!Q@localhost:3306/stock')
         self.__cursor = None
 
     def write_stock_info(self, info):
@@ -113,9 +113,11 @@ class MySQLDB:
         :param data:
         :return:
         """
+        self.__cursor = self.__con.cursor()
         delete_sql = "delete from stock_list"
         self.__cursor.execute(delete_sql)
         self.__con.commit()
+        self.__cursor.close()
         data.to_sql('stock_list', self.__engine, if_exists='append', index=False)
 
     def fetch_adj_factor(self, code):

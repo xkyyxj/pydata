@@ -10,6 +10,7 @@ import numpy as np
 import pandas
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import talib
 import tushare
 import Data.DataCenter
 import Algorithm.Calculator as Calculator
@@ -225,6 +226,9 @@ def batch_ana_stock(data_center):
         stock_code = stock_list[i][0]
         analyzer.start_analyze(stock_code)
 
+def ema_calculate(date_center):
+    df = data_center.fetch_base_data("000001.SZ")
+    df['SMA_5'] = talib.SMA(df['Close'], timeperiod=5)
 
 if __name__ == '__main__':
     print("starting")
@@ -232,9 +236,12 @@ if __name__ == '__main__':
     # hist_print()
     # result = FindUp.find_has_up_by_windows(data_center, 10)
     # FileOutput.csv_output(None, result, 'up_by_window.csv')
+    data_center.fetch_stock_list()
+    data_center.fetch_all_daily_info_until_now(trade_date="20250101")
 
-    result = FindUp.find_has_up_by_percent(data_center, 10, 0.1)
-    FileOutput.csv_output(None, result, 'up_by_pct_2025-09-01.csv')
+    # 重要方法
+    # result = FindUp.find_has_up_by_percent(data_center, 10, 0.1)
+    # FileOutput.csv_output(None, result, 'up_by_pct_2025-09-01.csv')
     # 模拟进程
     # retval = data_center.common_query("select * from ana_category")
     # period_simulate(data_center)
