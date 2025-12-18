@@ -1,9 +1,9 @@
-from Simulation.DayJudge import days_judge
-from Simulation.EMAJudge import ema_judge
-from Simulation.MACDJudge import macd_judge
-from Simulation.PeriodSimulate import single_process_period_simulate
-from Simulation.simulate import Simulate, MultiProcessor, single_cpu_core_simulate
-from Simulation.KDJJudge import kdj_judge
+from simulation.DayJudge import days_judge
+from simulation.EMAJudge import ema_judge
+from simulation.MACDJudge import macd_judge
+from simulation.PeriodSimulate import single_process_period_simulate
+from simulation.simulate import Simulate, MultiProcessor, single_cpu_core_simulate
+from simulation.KDJJudge import kdj_judge
 
 """
 多线程模拟过程，其中Simulate类可以支持多进程，所以多进程汇总的时候需要统计哪些字段需要怎么汇总

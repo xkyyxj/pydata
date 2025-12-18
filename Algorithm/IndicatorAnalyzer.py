@@ -1,7 +1,7 @@
 import os
 
 import pandas_ta as ta
-import Data.DataCenter as DataCenter
+import data.DataCenter as DataCenter
 from matplotlib import pyplot as plt
 
 

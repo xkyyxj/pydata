@@ -5,7 +5,7 @@
 import datetime
 import pandas
 import numpy as np
-import Output.FileOutput as FileOutput
+import output.FileOutput as FileOutput
 
 
 def cal_score(base_data):
@@ -70,8 +70,8 @@ def cal_wave_hot(data_center, windows=30, wave_percent=0.2, column='close', curr
     stock_list = data_center.fetch_stock_list()
 
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date, end_date=end_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date, end_date=end_date)
         if len(base_data) > 0:
             if curr_days:
                 max_price_i = base_data[column].idxmax()
@@ -116,8 +116,8 @@ def cal_big_wave_stock(data_center, column='af_close'):
     start_date = start_date.strftime("%Y%m%d")
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=start_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=start_date)
         if not base_data.empty and len(base_data) > 0:
             min_price = base_data.at[0, column]
             max_price = base_data.at[0, column]
@@ -157,8 +157,8 @@ def cal_wave_high(data_center, start_date=None):
         start_date = start_date.strftime("%Y%m%d")
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=start_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=start_date)
         std_value = base_data['pct_chg'].std()
         result = result.append({'ts_code': stock_list[i][0], 'std_value': std_value}, ignore_index=True)
     result = result.sort_values(by=['std_value'], ascending=False)
@@ -180,8 +180,8 @@ def get_max_up_stock(data_center, up_days=2):
     result = pandas.DataFrame(columns=('ts_code', 'name'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         if not base_data.empty and len(base_data) > up_days:
             can_add = True
             for j in range(up_days):
@@ -204,8 +204,8 @@ def get_his_max_up_pct(data_center, max_up_days=2, order_days=1):
     result = pandas.DataFrame(columns=('ts_code', 'order_days_ave_pct', 'match_count'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty and len(base_data) > 0:
             up_index = None
             for j in range(max_up_days):
@@ -245,8 +245,8 @@ def find_has_up_some(data_center, check_days=10, target_up_pct=0.2):
     result = pandas.DataFrame(columns=('ts_code', 'up_pct', 'name'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty and len(base_data) > 0:
             temp_base_data = base_data.sort_values(by=['trade_date'], ascending=False)
             temp_base_data.index = range(len(temp_base_data))
@@ -278,8 +278,8 @@ def sudden_break_stock(data_center):
     result = pandas.DataFrame(columns=('ts_code', 'up_pct', 'name'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty and len(base_data) > 0:
             close_se = base_data['close']
             close_se = close_se[len(close_se) - 15: len(close_se) - 2]
@@ -311,8 +311,8 @@ def no_max_continue_down_count(data_center):
     for i in range(len(stock_list)):
         print(stock_list[i][0])
         print(len(result))
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             base_data['down_price'] = base_data['af_close'].shift(-1) - base_data['af_close']
             for j in range(len(base_data)):
@@ -364,8 +364,8 @@ def cal_max_green_days(data_center, stock_code):
     :param stock_code:
     :return:
     """
-    base_data = data_center.fetch_base_data_pure_database(stock_code,
-                                                          begin_date='20160101')
+    base_data = data_center.fetch_base_data_pure_db(stock_code,
+                                                    begin_date='20160101')
     if not base_data.empty:
         for i in range(len(base_data)):
             if base_data.at[i, 'pct_chg'] < 0:
@@ -417,8 +417,8 @@ def find_max_start_max_down(data_center):
     D_num = 0
     E_num = 0
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             base_data.loc[:, 'next_pct_chg'] = base_data['pct_chg'].shift(-1)
             base_data.loc[:, 'pre_pct_chg'] = base_data['pct_chg'].shift(1)
@@ -600,8 +600,8 @@ def find_max_start_max_down_with_buy(data_center, start_days=None, end_days=None
     two_down_third_max_sold_nmax_b_win10_num = 0
 
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             base_data.loc[:, 'next_pct_chg'] = base_data['pct_chg'].shift(-1)
             base_data.loc[:, 'pre_pct_chg'] = base_data['pct_chg'].shift(1)
@@ -896,8 +896,8 @@ def cal_macd(data_center):
     """
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             pass
 
@@ -991,8 +991,8 @@ def find_quick_down_stock(data_center):
     result = pandas.DataFrame(columns=('ts_code', 'name'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         if not base_data.empty:
             five_before_price = base_data['close'].shift(5)
             base_data.loc[:, 'five_pct'] = (five_before_price - base_data['close']) / base_data['close']
@@ -1025,8 +1025,8 @@ def find_quick_up_stock(data_center, period=5, up_pct_min=0.10, up_pct_max=0.45,
     result = pandas.DataFrame(columns=columns)
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         if not base_data.empty and len(base_data) > period:
             five_before_price = base_data['close'].shift(period)
             base_data.loc[:, 'five_pct'] = (base_data['close'] - five_before_price) / five_before_price
@@ -1076,8 +1076,8 @@ def find_down_then_up(data_center):
         columns=('ts_code', 'ts_name', 'buy_date', 'buy_price', 'sold_date', 'sold_price', 'continue_days', 'win_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         continue_down_days = 0
         first_red = False
         has_stock = False
@@ -1129,8 +1129,8 @@ def find_down_then_up_for_buy(data_center):
     result = pandas.DataFrame(columns=('ts_code', 'ts_name'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         continue_down_days = 0
         first_red = False
         has_stock = False
@@ -1167,8 +1167,8 @@ def find_continue_max_up_stock(data_center, continue_days=5):
     result = pandas.DataFrame(columns=('ts_code', 'name', 'start_date'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         if not base_data.empty:
             for j in range(1, continue_days):
                 base_data.loc[:, 'pct_chg' + str(j)] = base_data['pct_chg'].shift(-j)
@@ -1197,8 +1197,8 @@ def max_up_continue_days(data_center):
     result = pandas.DataFrame(columns=('ts_code', 'name', 'start_date', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             continue_days = 0
             for j in range(len(base_data)):
@@ -1239,8 +1239,8 @@ def find_target_up_pct_stock(data_center, begin_date, end_date, target_pct):
         columns=('ts_code', 'name', 'start_price', 'start_date', 'end_price', 'end_date', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date)
         if not base_data.empty:
             min_close = 10000
             max_close = 0
@@ -1296,8 +1296,8 @@ def find_v_wave(data_center, down_days=4, down_must_green=False, up_must_high=Tr
     high_than_max_rst = pandas.DataFrame(columns=('ts_code', 'name'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190501')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190501')
         if not base_data.empty and len(base_data) > (down_days + 1):
             has_up_days = 0
             last_index = len(base_data) - 1
@@ -1365,8 +1365,8 @@ def find_continue_up_stock(data_center, up_days=4):
     high_than_max_rst = pandas.DataFrame(columns=('ts_code', 'name', 'up_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190501')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190501')
         if not base_data.empty and len(base_data) > up_days:
             is_continue_up = True
             last_index = len(base_data) - 1
@@ -1417,8 +1417,8 @@ def find_history_down_stock(data_center, begin_date='20191001'):
     result = pandas.DataFrame(columns=('ts_code', 'name', 'industry', 'curr_price', 'up_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date)
         if not base_data.empty:
             close_price = base_data.loc[:, 'close']
             min_price = close_price.min()
@@ -1464,8 +1464,8 @@ def find_down_then_up_stock(data_center, period=60, up_days=3, max_up_pct=0.1):
     begin_date = end_date - datetime.timedelta(days=period)
     begin_date_str = begin_date.strftime("%Y%m%d")
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date_str, end_date=end_date_str)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date_str, end_date=end_date_str)
         if not base_data.empty:
             price_series = base_data.loc[:, 'close']
             min_price = price_series.min()
@@ -1521,8 +1521,8 @@ def find_long_flow_or_down_then_up(data_center, flow_period=30, max_wave_pct=0.0
     begin_date = end_date - datetime.timedelta(days=flow_period + 10)
     begin_date_str = begin_date.strftime("%Y%m%d")
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date_str, end_date=end_date_str)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date_str, end_date=end_date_str)
         if not base_data.empty and len(base_data) > 5:
             continue_up = True
             curr_exceed_count = 0
@@ -1579,8 +1579,8 @@ def find_period_max_win(data_center, period, end_date_str=None):
     begin_date = end_date - datetime.timedelta(days=period)
     begin_date_str = begin_date.strftime("%Y%m%d")
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date_str, end_date=end_date_str)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date_str, end_date=end_date_str)
         if not base_data.empty:
             temp_dict = {
                 'ts_code': stock_list[i][0],
@@ -1627,8 +1627,8 @@ def order_stock_by_stdev(data_center, period=30):
     begin_date = end_date - datetime.timedelta(days=period)
     begin_date_str = begin_date.strftime("%Y%m%d")
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date_str, end_date=end_date_str)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date_str, end_date=end_date_str)
         if not base_data.empty:
             change_series = base_data.loc[:, 'change']
             close_series = base_data.loc[:, 'close']

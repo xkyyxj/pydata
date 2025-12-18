@@ -2,7 +2,7 @@ import pandas
 import pandas_ta as ta
 import datetime
 
-from Data.DataCenter import DataCenter
+from data.DataCenter import DataCenter
 
 
 class MACDSelector:

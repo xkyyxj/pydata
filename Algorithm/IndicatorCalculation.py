@@ -2,7 +2,7 @@ import pandas
 
 import pandas_ta as ta
 
-import Data
+import data
 
 """
 ema、vol相关计算逻辑
@@ -14,10 +14,9 @@ def initialize_ema():
     初始化ema指标，然后存储到ema_value这张表里面
     :return:
     """
-    data_center = Data.DataCenter.DataCenter.get_instance()
-    all_stock_list = data_center.fetch_stock_list()
+    all_stock_list = data.data_center.fetch_stock_list()
     for item in all_stock_list:
-        initialize_ema_one(data_center, item[0])
+        initialize_ema_one(data.data_center, item[0])
 
 
 def initialize_ema_one(data_center, ts_code):
@@ -65,14 +64,13 @@ def append_cal_ema():
     增量计算ema的值
     :return:
     """
-    data_center = Data.DataCenter.DataCenter.get_instance()
-    stock_list = data_center.fetch_stock_list()
+    stock_list = data.data_center.fetch_stock_list()
     for item in stock_list:
         ema_last_info_query = "select * from ema_value where ts_code='" + item[0] + "' order by trade_date desc limit 1"
-        ema_last_day_info = data_center.common_query_to_pandas(ema_last_info_query)
+        ema_last_day_info = data.data_center.common_query_to_pandas(ema_last_info_query)
         # 如果表里面没有值，那么就直接初始化计算一次好了
         if ema_last_day_info is None or len(ema_last_day_info) == 0:
-            initialize_ema_one(data_center, item[0])
+            initialize_ema_one(data.data_center, item[0])
             continue
 
         # 增补计算逻辑
@@ -90,7 +88,7 @@ def append_cal_ema():
         # 查询出所有的大于ema_last_day_date的股票基本信息
         query_sql = "select ts_code, trade_date, close from stock_base_info where ts_code='" + item[0] + "'"
         query_sql = query_sql + " and trade_date > '" + ema_last_day_info.at[0, 'trade_date'] + "' order by trade_date"
-        base_infos = data_center.common_query_to_pandas(query_sql)
+        base_infos = data.data_center.common_query_to_pandas(query_sql)
         if base_infos is None or base_infos.empty:
             continue
 
@@ -115,7 +113,7 @@ def append_cal_ema():
             temp_dict["ema_55"] = cal_ema_single_day(last_ema_val, curr_close, 65)
             temp_dict["ema_60"] = cal_ema_single_day(last_ema_val, curr_close, 60)
             write_data_frame = write_data_frame.append(temp_dict, ignore_index=True)
-        data_center.common_write_data_frame(write_data_frame, 'ema_value')
+        data.data_center.common_write_data_frame(write_data_frame, 'ema_value')
 
 
 def cal_ema_single_day(last_day_ema, last_day_close, ema_length):
@@ -134,7 +132,7 @@ def initialize_vol_ema():
     初始化ema指标，然后存储到ema_value这张表里面
     :return:
     """
-    data_center = Data.DataCenter.DataCenter.get_instance()
+    data_center = data.DataCenter.DataCenter.get_instance()
     all_stock_list = data_center.fetch_stock_list()
     for item in all_stock_list:
         initialize_vol_ema_one(data_center, item[0])
@@ -173,14 +171,13 @@ def append_cal_vol_ema():
     增量计算ema的值
     :return:
     """
-    data_center = Data.DataCenter.DataCenter.get_instance()
-    stock_list = data_center.fetch_stock_list()
+    stock_list = data.data_center.fetch_stock_list()
     for item in stock_list:
         ema_last_info_query = "select * from vol_ema where ts_code='" + item[0] + "' order by trade_date desc limit 1"
-        ema_last_day_info = data_center.common_query_to_pandas(ema_last_info_query)
+        ema_last_day_info = data.data_center.common_query_to_pandas(ema_last_info_query)
         # 如果表里面没有值，那么就直接初始化计算一次好了
         if ema_last_day_info is None or len(ema_last_day_info) == 0:
-            initialize_vol_ema_one(data_center, item[0])
+            initialize_vol_ema_one(data.data_center, item[0])
             continue
 
         # 增补计算逻辑
@@ -192,7 +189,7 @@ def append_cal_vol_ema():
         # 查询出所有的大于ema_last_day_date的股票基本信息
         query_sql = "select ts_code, vol from stock_base_info where ts_code='" + item[0] + "'"
         query_sql = query_sql + " and trade_date > '" + ema_last_day_info.at[0, 'trade_date'] + "' order by trade_date"
-        base_infos = data_center.common_query_to_pandas(query_sql)
+        base_infos = data.data_center.common_query_to_pandas(query_sql)
         if base_infos is None or base_infos.empty:
             continue
 
@@ -211,5 +208,5 @@ def append_cal_vol_ema():
             last_ema_val = write_data_frame.at[len(write_data_frame) - 1, ema_field_name] \
                 if len(write_data_frame) > 0 else ema_last_day_info.at[0, ema_field_name]
             write_data_frame = write_data_frame.append(temp_dict, ignore_index=True)
-        data_center.common_write_data_frame(write_data_frame, 'vol_ema')
+        data.data_center.common_write_data_frame(write_data_frame, 'vol_ema')
 

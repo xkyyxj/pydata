@@ -52,8 +52,8 @@ class MySQLDB:
 
     def fetch_all_daily_info_by_date(self, start_date):
         """
-        从数据库当中获取所有的股票的日交易信息，从@param start_date开始
-        :param start_date: 获取的所有股票日交易信息的开始日期
+        从数据库当中获取所有的stock的日交易信息，从@param start_date开始
+        :param start_date: 获取的所有stock日交易信息的开始日期
         :return:
         """
         query_sql = "select * from stock_base_info where trade_date >= %s"
@@ -108,7 +108,7 @@ class MySQLDB:
 
     def write_stock_list(self, data):
         """
-        鉴于tushare获取股票的基本信息不能指定编码，因此data当中必然包含了所有的股票信息
+        鉴于tushare获取stock的基本信息不能指定编码，因此data当中必然包含了所有的stock信息
         因此将此表删除然后重新插入
         :param data:
         :return:
@@ -133,7 +133,7 @@ class MySQLDB:
 
     def fetch_all_adj_factor_by_date(self, start_date, end_date='99991231'):
         """
-        一次性从数据库当中获取所有股票的复权因子，从@param start_date之后开始
+        一次性从数据库当中获取所有stock的复权因子，从@param start_date之后开始
         :param start_date:
         :return:
         """
@@ -145,7 +145,7 @@ class MySQLDB:
 
     def fetch_adj_factor_by_code_date(self, stock_code, begin_date, end_date):
         """
-        从数据库当中获取复权因子，根据股票编码以及开始结束日期过滤
+        从数据库当中获取复权因子，根据stock编码以及开始结束日期过滤
         :param end_date:
         :param begin_date:
         :param stock_code:

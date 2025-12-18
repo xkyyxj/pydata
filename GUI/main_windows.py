@@ -6,7 +6,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 from PySide2.QtCore import QDir
 from PySide2.QtWidgets import QSizePolicy, QTreeView, QFileSystemModel, QAction
 
-from Data.DataCenter import DataCenter
+from data.DataCenter import DataCenter
 from GUI.CustUIItem.StockChartModel import StockChartModel
 from GUI.TableArea.CommonAnaRst import CommonAnaRst
 from GUI.TableArea.PeriodVerifyResult import PeriodVerifyResult

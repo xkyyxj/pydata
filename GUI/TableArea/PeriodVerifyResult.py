@@ -1,4 +1,4 @@
-from Data.DataCenter import DataCenter
+from data.DataCenter import DataCenter
 from GUI.TableArea.AnaResult import AnaResult
 from GUI.TableArea.CommonAnaRst import CommonAnaRst
 

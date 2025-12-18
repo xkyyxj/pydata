@@ -1,5 +1,5 @@
 """
-Network 网络模块
+network 网络模块
 提供HTTP客户端和服务端功能
 """
 

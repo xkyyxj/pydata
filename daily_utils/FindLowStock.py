@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 """
-日常辅助程序之一：查找价格较低的股票
+日常辅助程序之一：查找价格较低的stock
 """
 import datetime
 import pandas
@@ -82,7 +82,7 @@ def find_low_and_has_up(base_data, up_percent, last_days, column):
 
 def find_has_up_stocks(data_center, windows=3, target_pct=0.2):
     """
-    查找已经上涨的股票，基于以下理念：既然追涨杀跌，那么就看涨势启动的股票好了
+    查找已经上涨的stock，基于以下理念：既然追涨杀跌，那么就看涨势启动的stock好了
     :param data_center: 数据中心对象
     :param windows: 连续windows天内上涨即算上涨
     :param target_pct: @param windows之内上涨到的百分比加入到最终结果集当中
@@ -96,8 +96,8 @@ def find_has_up_stocks(data_center, windows=3, target_pct=0.2):
     result = pandas.Series()
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date, end_date=end_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date, end_date=end_date)
         if len(base_data > windows):
             three_after = base_data['af_close'].shift(windows)
             base_data['w_up_pct'] = (three_after - base_data['af_close']) / base_data['af_close']
@@ -109,7 +109,7 @@ def find_has_up_stocks(data_center, windows=3, target_pct=0.2):
 
 def find_term_stock(data_center):
     """
-    寻找断片的股票
+    寻找断片的stock
     """
     # TODO -- 后续补完
     pass

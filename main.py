@@ -12,13 +12,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import talib
 import tushare
-import Data.DataCenter
-import Algorithm.Calculator as Calculator
-import Output.FileOutput as FileOutput
-from Algorithm.IndicatorAnalyzer import IndicatorAnalyzer
+import data.DataCenter
+import algorithm.Calculator as Calculator
+import output.FileOutput as FileOutput
+from algorithm.IndicatorAnalyzer import IndicatorAnalyzer
+from algorithm.IndicatorCalculation import initialize_vol_ema, initialize_ema
 import time
 
-from Algorithm.IndicatorCalculation import initialize_vol_ema, initialize_ema
 # from GUI import *
 # import ui_config.icons
 # from stock_py import initialize
@@ -28,11 +28,11 @@ from Algorithm.IndicatorCalculation import initialize_vol_ema, initialize_ema
 # from stock_py import CommonSelectStrategy
 # from stock_py import TrackSoldStrategy
 
-import Algorithm.Verify as Verify
+import algorithm.Verify as Verify
 # import redis
 import json
-import DailyUtils.FindLowStock as FindLowStock
-from DailyUtils import FindUp
+import daily_utils.FindLowStock as FindLowStock
+from daily_utils import FindUp
 
 # test pandas to_json and read_json
 # d = {'col1': [1, 2], 'col2': [3, 4]}
@@ -42,13 +42,13 @@ from DailyUtils import FindUp
 # data_frame2 = pandas.read_json(json1, orient='table');
 # fig, ax = plt.subplots()  # Create a figure containing a single axes.
 # ax.plot([1, 2, 3, 4], [1, 4, 2, 3])  # Plot some data on the axes.
-from Selector import select_from_in_low_by_indicator
-from Simulation import period_simulate, simulate_with_macd_multi_process, simulate_with_macd_kdj, simulate_with_ema, \
+from selector import select_from_in_low_by_indicator
+from simulation import period_simulate, simulate_with_macd_multi_process, simulate_with_macd_kdj, simulate_with_ema, \
     simulate_with_days
-from Simulation.KDJJudge import kdj_judge
-from Simulation.simulate import Simulate, MultiProcessor
+from simulation.KDJJudge import kdj_judge
+from simulation.simulate import Simulate, MultiProcessor
 
-data_center = Data.DataCenter.DataCenter.get_instance()
+data_center = data.data_center
 
 analyzer = IndicatorAnalyzer(data_center)
 
@@ -93,7 +93,7 @@ def analyze1(begin_date, end_date):
     }
     df = pandas.DataFrame(data)
 
-    all_data = data_center.fetch_all_base_range_no_tushare(begin_date, end_date)
+    all_data = data_center.fetch_all_base_range_pure_db(begin_date, end_date)
     all_data['next_close'] = all_data['close'].shift(1)
     all_data['next_pct'] = (all_data['next_close'] - all_data['close']) / all_data['close']
     first_day_close = all_data.iloc[all_data.groupby('ts_code')['trade_date'].idxmin()][['ts_code','close']]
@@ -236,9 +236,11 @@ if __name__ == '__main__':
     # hist_print()
     # result = FindUp.find_has_up_by_windows(data_center, 10)
     # FileOutput.csv_output(None, result, 'up_by_window.csv')
-    data_center.fetch_stock_list()
-    data_center.fetch_all_daily_info_until_now(trade_date="20250101")
-
+    # data_center.fetch_stock_list()
+    # data_center.fetch_all_daily_info_until_now(trade_date="20250101")
+    # initialize_ema()
+    # data_center.fetch_adj_factor_until_now(trade_date="20250101")
+    data_center.fetch_all_data_daily_use()
     # 重要方法
     # result = FindUp.find_has_up_by_percent(data_center, 10, 0.1)
     # FileOutput.csv_output(None, result, 'up_by_pct_2025-09-01.csv')
@@ -485,7 +487,7 @@ if __name__ == '__main__':
 # temp_val = [1, 2, 3, 4]
 # print(len(temp_val))
 #
-# data_center = Data.DataCenter.DataCenter()
+# data_center = data.DataCenter.DataCenter()
 # temp_value = data_center.fetch_base_data("600312.SH", "20181001", "20181202")
 
 # frame1 = pandas.DataFrame([12.0, 234, 555, 77, 234, 22])
@@ -512,11 +514,11 @@ if __name__ == '__main__':
 # plt.hist(v, bins=50, density=1)
 # plt.show()
 
-# data_center = Data.DataCenter.DataCenter()
+# data_center = data.DataCenter.DataCenter()
 # data_value = data_center.fetch_index_data('000001.SH', '20161001', '20181023')
 
 # ------------------------------------------------ begin ------------------------------------------------------
-# data_center = Data.DataCenter.DataCenter()
+# data_center = data.DataCenter.DataCenter()
 
 # stock_list = data_center.fetch_stock_list()
 
@@ -540,7 +542,7 @@ if __name__ == '__main__':
 
 
 # -------------------------------------------------批量获取数据 ---------------------------------------------------
-# data_center = Data.DataCenter.DataCenter()
+# data_center = data.DataCenter.DataCenter()
 # all_stock_list = data_center.fetch_stock_list(where="ts_code > '603616.SH'")
 # for item in range(len(all_stock_list)):
 #     data_center.fetch_base_data(all_stock_list[item][0], begin_date='20160101', end_date='20181217')
@@ -548,12 +550,12 @@ if __name__ == '__main__':
 # -------------------------------------------------批量获取数据 end  ---------------------------------------------------
 
 # -------------------------------------------------批量统计最低买入 ----------------------------------------------------
-# data_center = Data.DataCenter.DataCenter()
+# data_center = data.DataCenter.DataCenter()
 # Verify.batch_low_verify(data_center)
 # -------------------------------------------------批量统计最低买入 -- end ---------------------------------------------
 
 # -------------------------------------------------批量统计最低买入 ----------------------------------------------------
-# data_center = Data.DataCenter.DataCenter()
+# data_center = data.DataCenter.DataCenter()
 # Verify.with_15_up_buy(data_center)
 # -------------------------------------------------批量统计最低买入 -- end ---------------------------------------------
 

@@ -1,7 +1,7 @@
 import pandas
 import pandas_ta as ta
 
-from Simulation.simulate import Simulate
+from simulation.simulate import Simulate
 
 
 def macd_judge(base_data, fast=12, slow=26, signal=9):

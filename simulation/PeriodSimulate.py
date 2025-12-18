@@ -1,7 +1,7 @@
 import datetime
-from Data.DataCenter import DataCenter
-from Output import FileOutput
-from Simulation.simulate import Simulate
+from data.DataCenter import DataCenter
+from output import FileOutput
+from simulation.simulate import Simulate
 
 
 def single_process_period_simulate(stock_codes, judge_time, queue, dir_name, period=7):

@@ -14,7 +14,7 @@ class SelectorStrategy:
 
     def set_pre_scope(self, scope):
         """
-        股票编码的列表，从这张列表当中筛选股票
+        stock编码的列表，从这张列表当中筛选stock
         :param scope:
         :return:
         """

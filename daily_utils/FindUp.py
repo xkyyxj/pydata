@@ -11,7 +11,7 @@ def find_has_up_by_windows(data_center, window, begin_date = datetime.datetime.n
     """
     begin_date = begin_date - datetime.timedelta(days=window)
     begin_date = begin_date.strftime("%Y%m%d")
-    all_data = data_center.fetch_base_until_now_no_tushare(begin_date)
+    all_data = data_center.fetch_base_until_now_pure_db(begin_date)
     # calculate last win percent
     first_day_price = all_data.iloc[all_data.groupby('ts_code')['trade_date'].idxmin()][['ts_code', 'close', 'trade_date']]
     all_data = pandas.merge(all_data, first_day_price, on='ts_code', how='left', suffixes=('', '_first_day'))
@@ -31,7 +31,7 @@ def find_has_up_by_percent(data_center, window, up_pct, begin_date = datetime.da
     """
     begin_date = begin_date - datetime.timedelta(days=window)
     begin_date = begin_date.strftime("%Y%m%d")
-    all_data = data_center.fetch_base_until_now_no_tushare(begin_date)
+    all_data = data_center.fetch_base_until_now_pure_db(begin_date)
     # calculate last win percent
     first_day_price = all_data.iloc[all_data.groupby('ts_code')['trade_date'].idxmin()][
         ['ts_code', 'close', 'trade_date']]

@@ -1,7 +1,7 @@
 import pandas
 import pandas_ta as ta
 
-from Simulation.simulate import Simulate
+from simulation.simulate import Simulate
 
 
 def ema_judge(base_data, ema_length=5, buy_up_count=3, win_pct=0.07, lost_pct=0.03):

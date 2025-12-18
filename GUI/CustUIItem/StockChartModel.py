@@ -1,6 +1,6 @@
 from PySide2.QtCore import Signal, QObject
 
-from Data.Result import StockBatchKInfo, SingleKInfo
+from data.Result import StockBatchKInfo, SingleKInfo
 
 
 class StockChartModel(QObject):

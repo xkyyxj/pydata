@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 # 创建FastAPI应用实例
 app = FastAPI(
-    title="Stock Data Service API",
-    description="提供股票数据相关的RESTful API服务",
+    title="Stock data Service API",
+    description="提供stock数据相关的RESTful API服务",
     version="1.0.0"
 )
 
@@ -34,14 +34,14 @@ app.add_middleware(
 
 # 数据模型定义
 class StockDataRequest(BaseModel):
-    """股票数据请求模型"""
+    """stock数据请求模型"""
     stock_code: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     fields: Optional[List[str]] = None
 
 class StockDataResponse(BaseModel):
-    """股票数据响应模型"""
+    """stock数据响应模型"""
     stock_code: str
     data: List[Dict[str, Any]]
     count: int
@@ -56,7 +56,7 @@ class HealthCheckResponse(BaseModel):
 @app.get("/", tags=["Health"])
 async def root():
     """根路径，返回欢迎信息"""
-    return {"message": "Welcome to Stock Data Service API", "version": "1.0.0"}
+    return {"message": "Welcome to Stock data Service API", "version": "1.0.0"}
 
 @app.get("/health", response_model=HealthCheckResponse, tags=["Health"])
 async def health_check():
@@ -65,21 +65,21 @@ async def health_check():
     return HealthCheckResponse(
         status="healthy",
         timestamp=datetime.now().isoformat(),
-        service="Stock Data Service"
+        service="Stock data Service"
     )
 
-@app.get("/stock/{stock_code}", response_model=StockDataResponse, tags=["Stock Data"])
+@app.get("/stock/{stock_code}", response_model=StockDataResponse, tags=["Stock data"])
 async def get_stock_data(stock_code: str, start_date: Optional[str] = None, end_date: Optional[str] = None):
     """
-    获取指定股票代码的数据
+    获取指定stock代码的数据
     
     Args:
-        stock_code: 股票代码
+        stock_code: stock代码
         start_date: 开始日期 (YYYY-MM-DD)
         end_date: 结束日期 (YYYY-MM-DD)
         
     Returns:
-        股票数据
+        stock数据
     """
     logger.info(f"Received request for stock data: {stock_code}")
     
@@ -95,16 +95,16 @@ async def get_stock_data(stock_code: str, start_date: Optional[str] = None, end_
         count=len(mock_data)
     )
 
-@app.post("/stock/data", response_model=StockDataResponse, tags=["Stock Data"])
+@app.post("/stock/data", response_model=StockDataResponse, tags=["Stock data"])
 async def post_stock_data(request: StockDataRequest):
     """
-    根据请求参数获取股票数据
+    根据请求参数获取stock数据
     
     Args:
-        request: 股票数据请求对象
+        request: stock数据请求对象
         
     Returns:
-        股票数据
+        stock数据
     """
     logger.info(f"Received POST request for stock data: {request.stock_code}")
     
@@ -120,13 +120,13 @@ async def post_stock_data(request: StockDataRequest):
         count=len(mock_data)
     )
 
-@app.put("/stock/{stock_code}", tags=["Stock Data Management"])
+@app.put("/stock/{stock_code}", tags=["Stock data Management"])
 async def update_stock_data(stock_code: str, data: dict):
     """
-    更新指定股票代码的数据
+    更新指定stock代码的数据
     
     Args:
-        stock_code: 股票代码
+        stock_code: stock代码
         data: 更新的数据
         
     Returns:
@@ -137,13 +137,13 @@ async def update_stock_data(stock_code: str, data: dict):
     # 模拟更新逻辑
     return {"message": f"Stock data for {stock_code} updated successfully", "data": data}
 
-@app.delete("/stock/{stock_code}", tags=["Stock Data Management"])
+@app.delete("/stock/{stock_code}", tags=["Stock data Management"])
 async def delete_stock_data(stock_code: str):
     """
-    删除指定股票代码的数据
+    删除指定stock代码的数据
     
     Args:
-        stock_code: 股票代码
+        stock_code: stock代码
         
     Returns:
         删除结果
@@ -184,13 +184,13 @@ async def log_requests(request: Request, call_next):
 @app.on_event("startup")
 async def startup_event():
     """应用启动时执行的事件"""
-    logger.info("Stock Data Service is starting up...")
+    logger.info("Stock data Service is starting up...")
     # 可以在这里初始化数据库连接、加载配置等
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭时执行的事件"""
-    logger.info("Stock Data Service is shutting down...")
+    logger.info("Stock data Service is shutting down...")
     # 可以在这里关闭数据库连接、清理资源等
 
 # 主函数，用于直接运行服务器
@@ -204,7 +204,7 @@ def run_server(host="127.0.0.1", port=8000, reload=False):
         reload: 是否启用热重载（开发模式）
     """
     uvicorn.run(
-        "Network.server:app",
+        "network.server:app",
         host=host,
         port=port,
         reload=reload,

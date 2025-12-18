@@ -9,7 +9,7 @@ from PySide2.QtGui import QColor
 from PySide2.QtCore import QPoint
 from PySide2.QtCore import QSize
 
-from Data.Result import StockKInfo
+from data.Result import StockKInfo
 from GUI.CustUIItem.StockChartModel import StockChartModel
 
 

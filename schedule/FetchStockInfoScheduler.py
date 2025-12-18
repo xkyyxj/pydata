@@ -1,4 +1,4 @@
-from Schedule import AbstractSchedulerTask
+from schedule import AbstractSchedulerTask
 
 
 class FetchStockInfoScheduler(AbstractSchedulerTask):

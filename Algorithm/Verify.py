@@ -7,9 +7,9 @@ import time
 import datetime
 import pandas
 import matplotlib.pyplot as plt
-import DailyUtils.FindLowStock as FindLowStock
-import Output.FileOutput as FileOutput
-from Algorithm import Calculator
+import daily_utils.FindLowStock as FindLowStock
+import output.FileOutput as FileOutput
+from algorithm import Calculator
 
 
 def verify(base_data):
@@ -109,8 +109,8 @@ def batch_low_verify(data_center):
     real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101', end_date='20181217')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101', end_date='20181217')
         if not base_data.empty:
             return_result = period_low_verify(base_data, None, 'close')
             rst = return_result[0]
@@ -151,8 +151,8 @@ def high_after_low(data_center):
     real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101', end_date='20181217')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101', end_date='20181217')
         if not base_data.empty:
             # 计算逻辑
             close_shift_15 = base_data['close'].shift(-35)
@@ -179,8 +179,8 @@ def with_15_up_buy(data_center):
     real_win_count = pandas.DataFrame(columns=['ts_code', 'real_win_count'])
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101', end_date='20181217')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101', end_date='20181217')
         if not base_data.empty:
             # 计算逻辑
             close_shift_7 = base_data['close'].shift(7)
@@ -262,8 +262,8 @@ def curr_win_percent(data_center, begin_date, end_date):
     all_count = 0
     for i in range(len(stock_list)):
         time_value1 = datetime.datetime.now()
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date, end_date=end_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date, end_date=end_date)
         fetch_data_time += (datetime.datetime.now() - time_value1).seconds
         if not base_data.empty and len(base_data) > 1:
             # 计算逻辑
@@ -298,8 +298,8 @@ def windows_low_buy(data_center, windows=220, begin_date='20160101', end_date='2
     stock_list = data_center.fetch_stock_list()
 
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date=begin_date, end_date=end_date)
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date=begin_date, end_date=end_date)
         if not base_data.empty and len(base_data) > 1:
             # 计算逻辑
             low_index = FindLowStock.find_low_record_adv(base_data, windows)
@@ -348,8 +348,8 @@ def three_max_stock(data_center):
     result = pandas.DataFrame(columns=('ts_code', 'start_date', 'one_day_pct', 'two_day_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101', end_date='20190130')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101', end_date='20190130')
         if not base_data.empty and len(base_data) > 0:
             one_day_pct = base_data['pct_chg'].shift(-1)
             two_day_pct = base_data['pct_chg'].shift(-2)
@@ -391,8 +391,8 @@ def one_max_up(data_center, max_up_days=1):
     result = pandas.DataFrame(columns=('ts_code', 'start_date', 'one_day_pct', 'two_day_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101', end_date='20190130')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101', end_date='20190130')
         if not base_data.empty and len(base_data) > 0:
             up_index = None
             for j in range(max_up_days):
@@ -427,8 +427,8 @@ def low_af_high_buy(data_center):
     result = pandas.DataFrame(columns=('ts_code', 'start_date', 'one_day_pct', 'two_day_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty and len(base_data) > 0:
             pro_data = base_data['af_close'].rolling(window=30)
 
@@ -444,8 +444,8 @@ def dt_verify(data_center, stock_code=None):
                                        'paper_stock_value', 'real_stock_value', 'free_value', 'every_stock_val',
                                        'continue_days'))
     if stock_code is not None:
-        base_data = data_center.fetch_base_data_pure_database(stock_code,
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_code,
+                                                        begin_date='20160101')
         Calculator.cal_ma(base_data)
 
     # 初始化结果数组
@@ -571,8 +571,8 @@ def n_down_days_buy_next_sold(data_center, stock_code, down_days=3):
                                            'has_stock_num', 'continue_days', 'interest_state', 'is_percent_3'))
         free_val = 10000
         has_stock = False  # 是否持仓， 模拟满仓的效果，必须第二天卖出之后才能在第三天买入
-        base_data = data_center.fetch_base_data_pure_database(stock_list[j][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[j][0],
+                                                        begin_date='20160101')
         stock_code = stock_list[j][0]
         if not base_data.empty:
             continue_down_days = 0
@@ -726,8 +726,8 @@ def n_green_days_buy_next_sold(data_center, stock_code, down_days=4):
         free_val = 10000
         has_stock = False  # 是否持仓， 模拟满仓的效果，必须第二天卖出之后才能在第三天买入
         stock_code = stock_list[j][0]
-        base_data = data_center.fetch_base_data_pure_database(stock_code,
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_code,
+                                                        begin_date='20160101')
         if not base_data.empty:
             continue_down_days = 0
             for i in range(len(base_data)):
@@ -891,8 +891,8 @@ def n_green_days_two_red_buy_next_sold(data_center, stock_code, down_days=4):
         free_val = 10000
         has_stock = False  # 是否持仓， 模拟满仓的效果，必须第二天卖出之后才能在第三天买入
         stock_code = stock_list[j][0]
-        base_data = data_center.fetch_base_data_pure_database(stock_code,
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_code,
+                                                        begin_date='20160101')
         if not base_data.empty:
             continue_down_days = 0
             red_days = 0
@@ -993,8 +993,8 @@ def n_max_up_buy_verify(data_center):
     ok_num = 0  # 成功封涨停的天数
     fail_num = 0  # 第二天开盘成功封涨停但是尾盘封涨停失败的天数
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             base_data.loc[:, 'next_pct_chg'] = base_data['pct_chg'].shift(-1)
             base_data.loc[:, 'pre_pct_chg'] = base_data['pct_chg'].shift(1)
@@ -1069,8 +1069,8 @@ def recent_two_max_up_rate(data_center):
     ok_num = 0  # 成功封涨停的天数
     fail_num = 0  # 第二天开盘成功封涨停但是尾盘封涨停失败的天数
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             base_data.loc[:, 'next_pct_chg'] = base_data['pct_chg'].shift(-1)
             base_data.loc[:, 'pre_pct_chg'] = base_data['pct_chg'].shift(1)
@@ -1140,8 +1140,8 @@ def macd_buy_verify(data_center):
     'diff', 'dea', 'bar'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             is_continue_up = False
             for j in range(len(base_data)):
@@ -1181,8 +1181,8 @@ def kdj_buy_verify(data_center):
                                        'is_win', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             base_data = Calculator.cal_kdj_per_stock(base_data)
             base_data.loc[:, 'diff'] = base_data['j_value'] - base_data['k_value']
@@ -1240,8 +1240,8 @@ def trix_buy_verify(data_center):
                                        'is_win', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             base_data = Calculator.cal_trix_per_stock(base_data)
             base_data.loc[:, 'diff'] = base_data['trix'] - base_data['trma']
@@ -1297,8 +1297,8 @@ def four_red_verify(data_center):
                                        'is_win', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             pass
 
@@ -1313,8 +1313,8 @@ def ma20_up_buy(data_center):
                                        'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             Calculator.cal_ma(base_data, 'close')
             is_continue_up = False
@@ -1369,8 +1369,8 @@ def check_k_buy(data_center):
                                        'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             continue_down_days = 0
             has_stock = False
@@ -1438,8 +1438,8 @@ def verify_stock_by_ma20(data_center):
                                        'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             Calculator.cal_ma(base_data, column_name='close', ma_array=(40, 20))
             is_continue_up = False
@@ -1490,8 +1490,8 @@ def find_stock_by_ma20(data_center):
                                        'is_k_cross_ma20', 'is_k_lower__ma20'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         if not base_data.empty:
             Calculator.cal_ma(base_data, column_name='close', ma_array=(40, 20))
             if base_data.at[len(base_data) - 1, 'ma20slope'] > 0:
@@ -1522,8 +1522,8 @@ def find_maximum_win_pct(data_center):
                                        'is_win_10', 'is_win_20', 'is_win_40', 'is_win', 'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20190101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20190101')
         if not base_data.empty:
             windows_30 = base_data.rolling(30)
             min_value = windows_30['close'].min()
@@ -1564,8 +1564,8 @@ def quick_down_stock_verify(data_center):
         columns=('ts_code', 'name', 'buy_price', 'sold_price', 'buy_date', 'sold_date', 'win_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             five_before_price = base_data['close'].shift(5)
             base_data.loc[:, 'five_pct'] = (five_before_price - base_data['close']) / base_data['close']
@@ -1610,8 +1610,8 @@ def line_k_verify(data_center):
         columns=('ts_code', 'name', 'buy_price', 'sold_price', 'buy_date', 'sold_date', 'win_pct'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty:
             continue_down_days = 0
             base_data.loc[:, 'sold_date'] = base_data['trade_date'].shift(-2)
@@ -1672,8 +1672,8 @@ def find_quick_up_stock_buy_down_sold_verify(data_center, period=5, up_pct_min=0
                                        'days_delta', 'is_win_10'))
     stock_list = data_center.fetch_stock_list()
     for k in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[k][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[k][0],
+                                                        begin_date='20160101')
         if not base_data.empty and len(base_data) > period:
             period_day_before = base_data['close'].shift(period)
             base_data.loc[:, 'period_day_pct'] = (base_data['close'] - period_day_before) / period_day_before
@@ -1759,8 +1759,8 @@ def v_wave_stock_buy_verify(data_center, down_days=4, down_must_green=False):
                                        'continue_days'))
     stock_list = data_center.fetch_stock_list()
     for i in range(len(stock_list)):
-        base_data = data_center.fetch_base_data_pure_database(stock_list[i][0],
-                                                              begin_date='20160101')
+        base_data = data_center.fetch_base_data_pure_db(stock_list[i][0],
+                                                        begin_date='20160101')
         if not base_data.empty and len(base_data) > (down_days + 1):
             has_stock = False   # 是否有持仓
             for k in range(down_days + 1, len(base_data) - 1):

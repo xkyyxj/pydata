@@ -1,6 +1,6 @@
 import pandas
 
-from Simulation.simulate import Simulate
+from simulation.simulate import Simulate
 
 
 def days_judge(base_data, up_days=3, window_days=4):

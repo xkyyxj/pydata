@@ -1,7 +1,7 @@
 import PySide2
 from PySide2.QtCore import QAbstractItemModel, QModelIndex
 
-from Data.DataCenter import DataCenter
+from data.DataCenter import DataCenter
 from GUI.treeItem.Category import Category
 from GUI.treeItem.TreeItem import TreeItem
 

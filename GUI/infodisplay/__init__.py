@@ -2,7 +2,7 @@ import PySide2
 from PySide2.QtCore import QPoint, Slot
 from PySide2.QtWidgets import QWidget, QDialog
 
-from Data.Result import StockKInfo
+from data.Result import StockKInfo
 from ui_config.InfoDisplay import Ui_InfoDisplay
 
 

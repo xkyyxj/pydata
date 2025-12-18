@@ -1,7 +1,7 @@
 import pandas
 import pandas_ta as ta
 
-from Simulation import Simulate
+from simulation import Simulate
 
 
 def kdj_judge(base_data):

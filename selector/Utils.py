@@ -1,6 +1,6 @@
 import pandas
 
-from Data.DataCenter import DataCenter
+from data.DataCenter import DataCenter
 
 
 def merge_table_data(data_center: DataCenter, tables):

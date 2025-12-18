@@ -31,14 +31,14 @@ pip install -r requirements.txt
 
 ```bash
 # 在项目根目录下运行
-python -m Network.server
+python -m network.server
 ```
 
 或者在项目根目录下创建一个主入口文件：
 
 ```python
 # main.py
-from Network.server import run_server
+from network.server import run_server
 
 if __name__ == "__main__":
     run_server(host="0.0.0.0", port=8000)
@@ -52,7 +52,7 @@ python main.py
 ### 作为模块集成到现有应用
 
 ```python
-from Network.server import app
+from network.server import app
 import uvicorn
 
 if __name__ == "__main__":

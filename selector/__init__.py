@@ -1,10 +1,10 @@
 # 股票选择器
 # 选择符合条件的股票，然后日常验证
-from Selector.SelectorStrategy import SelectorStrategy
-from Selector.Utils import merge_table_data
+from selector.SelectorStrategy import SelectorStrategy
+from selector.Utils import merge_table_data
 import pandas_ta as ta
 
-from Selector.macd import MACDSelector
+from selector.macd import MACDSelector
 
 MIXED = 1           # 多表合并取交集
 MERGE_ALL = 2       # 多表合并取并集
