@@ -18,6 +18,8 @@ import output.FileOutput as FileOutput
 from algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 from algorithm.IndicatorCalculation import initialize_vol_ema, initialize_ema
 import time
+from schedulers import start_scheduler
+from network import run_server
 
 # from GUI import *
 # import ui_config.icons
@@ -232,6 +234,8 @@ def ema_calculate(date_center):
 
 if __name__ == '__main__':
     print("starting")
+    start_scheduler()
+    run_server()
     # analyze1('20250401', '20250430'))
     # hist_print()
     # result = FindUp.find_has_up_by_windows(data_center, 10)
@@ -240,7 +244,7 @@ if __name__ == '__main__':
     # data_center.fetch_all_daily_info_until_now(trade_date="20250101")
     # initialize_ema()
     # data_center.fetch_adj_factor_until_now(trade_date="20250101")
-    data_center.fetch_all_data_daily_use()
+    # data_center.fetch_all_data_daily_use()
     # 重要方法
     # result = FindUp.find_has_up_by_percent(data_center, 10, 0.1)
     # FileOutput.csv_output(None, result, 'up_by_pct_2025-09-01.csv')
