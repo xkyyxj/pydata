@@ -1,7 +1,7 @@
 import pandas
 import datetime
 from data.DataCenter import DataCenter
-from output import FileOutput
+from output import file_output
 import multiprocessing
 from multiprocessing import queues
 

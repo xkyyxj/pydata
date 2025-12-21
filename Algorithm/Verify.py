@@ -8,7 +8,7 @@ import datetime
 import pandas
 import matplotlib.pyplot as plt
 import daily_utils.FindLowStock as FindLowStock
-import output.FileOutput as FileOutput
+import output.file_output as FileOutput
 from algorithm import Calculator
 
 

@@ -31,3 +31,4 @@ def start_scheduler():
     """
     logging.info("开始启动定时任务")
     __scheduler.start()
+    logging.info("定时任务启动完成")

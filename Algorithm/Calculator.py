@@ -5,7 +5,7 @@
 import datetime
 import pandas
 import numpy as np
-import output.FileOutput as FileOutput
+import output.file_output as FileOutput
 
 
 def cal_score(base_data):

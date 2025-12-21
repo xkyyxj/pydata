@@ -1,6 +1,6 @@
 import datetime
 from data.DataCenter import DataCenter
-from output import FileOutput
+from output import file_output
 from simulation.simulate import Simulate
 
 

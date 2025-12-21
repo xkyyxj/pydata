@@ -2,6 +2,8 @@
 """
 程序入口
 """
+import asyncio
+import multiprocessing
 import sys
 import threading
 import time
@@ -14,7 +16,7 @@ import talib
 import tushare
 import data.DataCenter
 import algorithm.Calculator as Calculator
-import output.FileOutput as FileOutput
+import output.file_output as FileOutput
 from algorithm.IndicatorAnalyzer import IndicatorAnalyzer
 from algorithm.IndicatorCalculation import initialize_vol_ema, initialize_ema
 import time
@@ -232,10 +234,13 @@ def ema_calculate(date_center):
     df = data_center.fetch_base_data("000001.SZ")
     df['SMA_5'] = talib.SMA(df['Close'], timeperiod=5)
 
+
 if __name__ == '__main__':
-    print("starting")
-    start_scheduler()
+    # 启动后台定时任务
+    scheduler_job = multiprocessing.Process(target=start_scheduler)
+    scheduler_job.start()
     run_server()
+    scheduler_job.join()
     # analyze1('20250401', '20250430'))
     # hist_print()
     # result = FindUp.find_has_up_by_windows(data_center, 10)

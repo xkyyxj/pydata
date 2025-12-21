@@ -1,6 +1,6 @@
 import logging
 
-from schedulers.TimeScheduler import schedule_job
+from schedulers.time_scheduler import schedule_job
 from data import data_center
 
 @schedule_job('cron', hour=9)

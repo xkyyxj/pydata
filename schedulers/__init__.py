@@ -3,5 +3,5 @@ __all__ = [
     'start_scheduler'
 ]
 
-from schedulers.TimeScheduler import schedule_job, start_scheduler
-from schedulers.FetchStockInfoScheduler import fetch_stock_daily_info
+from schedulers.time_scheduler import schedule_job, start_scheduler
+from schedulers.fetch_stock_info_scheduler import fetch_stock_daily_info

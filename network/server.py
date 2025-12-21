@@ -194,7 +194,7 @@ async def shutdown_event():
     # 可以在这里关闭数据库连接、清理资源等
 
 # 主函数，用于直接运行服务器
-def run_server(host="127.0.0.1", port=8000, reload=False):
+def run_server(host="127.0.0.1", port=20000, reload=False):
     """
     运行FastAPI服务器
     
@@ -203,6 +203,7 @@ def run_server(host="127.0.0.1", port=8000, reload=False):
         port: 端口号
         reload: 是否启用热重载（开发模式）
     """
+    logging.info("server running!")
     uvicorn.run(
         "network.server:app",
         host=host,
