@@ -59,6 +59,14 @@ class DataPull:
         """
         return tushare.pro_bar(pro_api=self.__pro, ts_code=code, adj='hfq', start_date=start_date, end_date=end_date)
 
+    def fetch_top_stock_list(self, trade_date):
+        """
+        获取龙虎榜数据
+        :param trade_date: 交易日期
+        """
+        data = self.__pro.top_list(trade_date=trade_date)
+        return data
+
     def fetch_stock_list(self):
         """
         获取所有的stock的基本信息，包括名称编码等内容，目前只获取上市公司的信息

@@ -11,9 +11,9 @@ from sqlalchemy import create_engine
 
 class MySQLDB:
     def __init__(self):
-        self.__con = pymysql.connect(host="localhost", user="root", password="ufida123qwe!Q", database="stock")
+        self.__con = pymysql.connect(host="localhost", user="root", password="123qwe", database="stock")
         self.__con.autocommit(True)
-        self.__engine = create_engine('mysql+mysqlconnector://root:ufida123qwe!Q@localhost:3306/stock')
+        self.__engine = create_engine('mysql+mysqlconnector://root:123qwe@localhost:3306/stock')
         self.__cursor = None
 
     def write_stock_info(self, info):
@@ -210,6 +210,9 @@ class MySQLDB:
         :return:
         """
         daily_info.to_sql('stock_index_baseinfo', self.__engine, if_exists='append', index=False)
+
+    def write_top_stock_list(self, top_stock_list):
+        top_stock_list.to_sql('top_stock_list', self.__engine, if_exists='append', index=False)
 
     def delete_stock_list(self):
         """

@@ -17,7 +17,6 @@ class DataCenter:
     def __init__(self):
         self.__database = data.Database.MySQLDB()
         self.__data_pull = data.DataPull.DataPull()
-        self.__fetch_data_time = 0
 
     @staticmethod
     def get_instance():
@@ -26,9 +25,6 @@ class DataCenter:
         :return:
         """
         return data_center
-
-    def get_fetch_data_time(self):
-        return self.__fetch_data_time
 
     def fetch_all_data_daily_use(self):
         """
@@ -204,15 +200,16 @@ class DataCenter:
         :param trade_date:
         :return:
         """
-        data = self.__data_pull.pull_all_one_day(trade_date)
-        self.__database.write_stock_info(data)
-        return data
+        base_info_data = self.__data_pull.pull_all_one_day(trade_date)
+        self.__database.write_stock_info(base_info_data)
+        return base_info_data
 
     def fetch_index_info_daily(self, begin_date, end_date):
         """
         获取stock指数的日线信息，@param trade_date这一天的所有信息
         目前先处理两个指数的信息（上证指数：000001.SH和深证成指：399001.SZ）
-        :param trade_date:
+        :param begin_date:
+        :param end_date:
         :return:
         """
         fetch_list = ['000001.SH', '399001.SZ']
@@ -225,7 +222,7 @@ class DataCenter:
         从数据库当中获取复权因子，如果是复权因子没有包含最新的，那么重新从tushare接口获取
         :param end_date: 结束日期
         :param begin_date: 开始日期
-        :param ts_code: stocktushare编码
+        :param ts_code: stock编码
         :return:
         """
         date = datetime.date.today()
@@ -258,7 +255,7 @@ class DataCenter:
         """
         按天获取所有的stock的信息，如果是@param until_now为True的话，那么一直获取到当天为止
         该方法同时会获取相关的复权信息，同时将基本信息和复权信息做处理后写入到Redis缓存当中
-        :param trade_date:
+        :param trade_date: 获取的开始时间，格式为——20250101，字符串形式
         :return:
         """
         if trade_date is None:
@@ -298,42 +295,14 @@ class DataCenter:
             temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
             if trade_date <= now_date and until_now:
                 while trade_date <= now_date:
-                    ret_value = self.__data_pull.fetch_adj_factor_by_date(trade_date=trade_date) if ret_value.empty else pandas.concat([ret_value, self.__data_pull.fetch_adj_factor_by_date(trade_date=trade_date)], axis=0)
+                    ret_value = self.__data_pull.fetch_adj_factor_by_date(
+                        trade_date=trade_date) if ret_value.empty else pandas.concat(
+                        [ret_value, self.__data_pull.fetch_adj_factor_by_date(trade_date=trade_date)], axis=0)
                     temp_date += datetime.timedelta(days=1)
                     trade_date = temp_date.strftime("%Y%m%d")
                 # 将数据回写到数据库当中
                 self.__database.write_adj_factor(ret_value)
         return ret_value
-
-    def init_adj_factor(self):
-        """
-        获取所有的stock复权因子，同时写入到数据库当中
-        :return:
-        """
-        all_stock_list = self.fetch_stock_list(where="ts_code not in (select ts_code from adj_factor)", market=None)
-        for item in range(len(all_stock_list)):
-            ret_data = self.__data_pull.fetch_adj_factor_by_code(all_stock_list[item][0])
-            self.__database.write_adj_factor(ret_data)
-            time.sleep(1)
-
-    def init_base_info(self):
-        """
-        初始化基本信息，并且将基本信息写入到数据库当中
-        现在默认是fetch从2016年1月1日开始的基本数据
-        :return:
-        """
-        all_stock_list = self.fetch_stock_list()
-        end_date = datetime.datetime.now()
-        end_date = end_date.strftime("%Y%m%d")
-        for item in range(len(all_stock_list)):
-            result = self.__data_pull.pull_data(all_stock_list[item][0], start_date='20250101', end_date=end_date)
-            self.__database.write_stock_info(result)
-            time.sleep(1)
-        # 获取一下日线数据
-        self.fetch_index_list()
-        # 把两个指数的数据获取到了
-        self.fetch_index_data('000001.SZ', '20000101', end_date)
-        self.fetch_index_data('399001.SZ', '20000101', end_date)
 
     def fetch_stock_list(self, code=None, market=['主板', '中小板'], where=''):
         """
@@ -379,29 +348,25 @@ class DataCenter:
         :param end_date: 字符串类型
         :return: stock基本信息
         """
-        # 首先从redis缓存当中取数据，通常情况下应该已经放入到redis缓存当中了
-        # data = self.get_base_info_from_redis(stock_code, begin_date=begin_date, end_date=end_date)
-        # 没有取到数据再从数据库当中取数据
-        # if data is None or len(data) <= 0:
         if end_date is None:
             end_date = datetime.datetime.now()
             end_date = end_date.strftime("%Y%m%d")
         # 后复权价格，导致程序崩溃，所以此处重新计算一下并将其写入到Redis当中
-        data = self.__database.fetch_daily_info(stock_code, start_date=begin_date, end_date=end_date)
-        if data is not None and not data.empty:
-            data = data.sort_values(by=['trade_date'])
+        stock_data = self.__database.fetch_daily_info(stock_code, start_date=begin_date, end_date=end_date)
+        if stock_data is not None and not stock_data.empty:
+            stock_data = stock_data.sort_values(by=['trade_date'])
             adj_factor = self.fetch_adj_factor_pure_db(stock_code,
-                                                       begin_date=data.at[0, 'trade_date'],
-                                                       end_date=data.at[
-                                                                 len(data) - 1, 'trade_date'])
-            data['adj_factor'] = adj_factor['adj_factor']
-            data['af_close'] = data['close'] * adj_factor['adj_factor']
+                                                       begin_date=stock_data.at[0, 'trade_date'],
+                                                       end_date=stock_data.at[
+                                                           len(stock_data) - 1, 'trade_date'])
+            stock_data['adj_factor'] = adj_factor['adj_factor']
+            stock_data['af_close'] = stock_data['close'] * adj_factor['adj_factor']
 
         # 做下过滤
-        data = data[(data['trade_date'] >= begin_date) & (data['trade_date'] <= end_date)]
-        data = data.sort_values(by=['trade_date'])
-        data.index = range(len(data))
-        return data
+        stock_data = stock_data[(stock_data['trade_date'] >= begin_date) & (stock_data['trade_date'] <= end_date)]
+        stock_data = stock_data.sort_values(by=['trade_date'])
+        stock_data.index = range(len(stock_data))
+        return stock_data
 
     def fetch_adj_factor_pure_db(self, ts_code, begin_date='20180101', end_date=None):
         if end_date is None:
@@ -410,13 +375,19 @@ class DataCenter:
         local_data = self.__database.fetch_adj_factor_by_code_date(ts_code, begin_date, end_date)
         return local_data
 
-    def fetch_base_until_now_pure_db(self, begin_date='202250805'):
+    def fetch_base_until_now_pure_db(self, begin_date='202250805', market = ("主板", "中小板")):
         """
         从数据库当中获取从指定日期开始到现在的数据，不从tushare当中获取数据
         """
-        sql = 'select ts_code, close, trade_date, pct_chg from stock_base_info where trade_date > \'' + begin_date + '\''
+        sql = 'select ts_code, close, trade_date, pct_chg from stock_base_info where trade_date >= \'' + begin_date + '\''
+        if len(market) != 0:
+            sql = sql + " and ts_code in (select ts_code from stock_list where market in ('"
+            for item in market:
+                sql = sql + item + "','"
+            sql = sql[:-2]
+            sql = sql + "))"
         stock_base_info_pandas = self.__database.common_query_to_pandas(sql)
-        sql = 'select ts_code, close, trade_date, pct_chg from stock_index_baseinfo where trade_date >  \'' + begin_date + '\''
+        sql = 'select ts_code, close, trade_date, pct_chg from stock_index_baseinfo where trade_date >=  \'' + begin_date + '\''
         index_daily_padas = self.__database.common_query_to_pandas(sql)
         return pandas.concat([stock_base_info_pandas, index_daily_padas], axis=0)
 
@@ -435,7 +406,6 @@ class DataCenter:
     def fetch_all_daily_info(self, trade_date=None, until_now=True):
         """
         按天获取所有的stock的信息，写入数据库，如果是@param until_now为True的话，那么一直获取到当天为止
-        :param stock_code:
         :param trade_date:
         :param until_now:
         :return:
@@ -453,6 +423,24 @@ class DataCenter:
                     self.fetch_all_base_one_day(trade_date=trade_date)
                     temp_date += datetime.timedelta(days=1)
                     trade_date = temp_date.strftime("%Y%m%d")
+
+    def fetch_top_stock_list(self, trade_date=None):
+        """
+        获取龙虎榜数据
+        """
+        if trade_date is None:
+            trade_date = datetime.datetime.now()
+        now_time = datetime.datetime.now()
+        now_date = now_time.strftime("%Y%m%d")
+        temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
+        while trade_date <= now_date:
+            top_stock_data = self.__data_pull.fetch_top_stock_list(trade_date)
+            temp_date += datetime.timedelta(days=1)
+            trade_date = temp_date.strftime("%Y%m%d")
+            self.__database.write_top_stock_list(top_stock_data)
+            time.sleep(0.4) # Tushare接口有速率限制，此处每次获取完毕等待一下
+
+
 
     def fetch_finance_indicator(self, ts_code, start_date, end_date):
         """

@@ -14,6 +14,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import talib
 import tushare
+
+import daily_utils
 import data.DataCenter
 import algorithm.Calculator as Calculator
 import output.file_output as FileOutput
@@ -174,29 +176,6 @@ def init_finance_indicator():
         time.sleep(2)
 
 
-def fetch_all_daily_info(trade_date=None, until_now=False):
-    """
-    按天获取所有的股票的信息，如果是@pfind_quick_up_stockaram until_now为True的话，那么一直获取到当天为止
-    :param stock_code:
-    :param trade_date:
-    :param until_now:
-    :return:
-    """
-    if trade_date is None:
-        trade_date = datetime.datetime.now()
-        trade_date = trade_date.strftime("%Y%m%d")
-        data_center.fetch_all_base_one_day(trade_date=trade_date)
-    else:
-        now_time = datetime.datetimeshort_time_select.now()
-        now_date = now_time.strftime("%Y%m%d")
-        temp_date = datetime.date(int(trade_date[0:4]), int(trade_date[4:6]), int(trade_date[6:8]))
-        if trade_date < now_date and until_now:
-            while trade_date < now_date:
-                data_center.fetch_all_base_one_day(trade_date=trade_date)
-                temp_date += datetime.timedelta(days=1)
-                trade_date = temp_date.strftime("%Y%m%d")
-
-
 def write_base_info_to_redis(write_form='JSON'):
     if write_form == 'JSON':
         data_center.flush_data_to_redis()
@@ -232,15 +211,22 @@ def batch_ana_stock(data_center):
 
 def ema_calculate(date_center):
     df = data_center.fetch_base_data("000001.SZ")
-    df['SMA_5'] = talib.SMA(df['Close'], timeperiod=5)
+    # df['SMA_5'] = talib.SMA(df['Close'], timeperiod=5)
 
 
-if __name__ == '__main__':
-    # 启动后台定时任务
+def start_main():
     scheduler_job = multiprocessing.Process(target=start_scheduler)
     scheduler_job.start()
     run_server()
     scheduler_job.join()
+
+if __name__ == '__main__':
+    data_center.fetch_top_stock_list("20250101")
+    # result = daily_utils.find_has_up_by_windows(data_center, 3, )
+    # FileOutput.csv_output(None, result, 'up_by_window.csv')
+    # data_center.fetch_all_daily_info_until_now(trade_date='20250101')
+    # 启动后台定时任务
+    # start_main()
     # analyze1('20250401', '20250430'))
     # hist_print()
     # result = FindUp.find_has_up_by_windows(data_center, 10)
